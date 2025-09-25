@@ -1,7 +1,7 @@
 // app/dashboard/creditors/page.tsx
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { 
   MagnifyingGlassIcon, 
   PlusIcon, 
@@ -12,73 +12,53 @@ import {
   ExclamationTriangleIcon,
   BuildingStorefrontIcon
 } from '@heroicons/react/24/outline';
-import { Creditor, PaymentStatus } from '@/app/business';
+
+type Creditor = {
+  id: number;
+  name: string;
+  contact: string;
+  email: string;
+  phone: string;
+  balance: number;
+  dueDate: string;
+  status: 'Pending' | 'Overdue' | 'Paid';
+  creditTerms: string;
+  lastPayment: string | null;
+  paymentAmount: number;
+};
 
 export default function Creditors() {
-  const [creditors, setCreditors] = useState<Creditor[]>([
-    { 
-      id: 1, 
-      name: 'ABC Suppliers', 
-      contact: 'John Doe', 
-      email: 'john@abcsuppliers.com', 
-      phone: '555-0123', 
-      balance: 2500.00, 
-      dueDate: '2023-06-15',
-      status: 'Pending',
-      creditTerms: 'Net 30',
-      lastPayment: '2023-04-20',
-      paymentAmount: 1000.00
-    },
-    { 
-      id: 2, 
-      name: 'XYZ Wholesale', 
-      contact: 'Jane Smith', 
-      email: 'jane@xyzwholesale.com', 
-      phone: '555-0456', 
-      balance: 1250.75, 
-      dueDate: '2023-06-20',
-      status: 'Pending',
-      creditTerms: 'Net 15',
-      lastPayment: '2023-05-05',
-      paymentAmount: 750.00
-    },
-    { 
-      id: 3, 
-      name: 'Global Distributors', 
-      contact: 'Mike Johnson', 
-      email: 'mike@globaldist.com', 
-      phone: '555-0789', 
-      balance: 3750.50, 
-      dueDate: '2023-05-30',
-      status: 'Overdue',
-      creditTerms: 'Net 30',
-      lastPayment: '2023-03-15',
-      paymentAmount: 1200.00
-    },
-    { 
-      id: 4, 
-      name: 'Premium Goods Inc', 
-      contact: 'Sarah Wilson', 
-      email: 'sarah@premiumgoods.com', 
-      phone: '555-0912', 
-      balance: 820.25, 
-      dueDate: '2023-07-05',
-      status: 'Pending',
-      creditTerms: 'Net 45',
-      lastPayment: '2023-05-22',
-      paymentAmount: 500.00
-    },
-  ]);
-
+  const [creditors, setCreditors] = useState<Creditor[]>([]);
+  const [loading, setLoading] = useState<boolean>(true);
   const [selectedCreditor, setSelectedCreditor] = useState<Creditor | null>(null);
   const [showPaymentModal, setShowPaymentModal] = useState<boolean>(false);
   const [paymentAmount, setPaymentAmount] = useState<string>('');
   const [searchTerm, setSearchTerm] = useState<string>('');
 
-  const filteredCreditors = creditors.filter((creditor: Creditor) => 
-    creditor.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    creditor.contact.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  useEffect(() => {
+    async function loadCreditors() {
+      try {
+        const res = await fetch('http://localhost:8080/api/creditors?page=0&size=20');
+        if (!res.ok) throw new Error('Failed to load creditors');
+        const page = await res.json();
+        // Spring's Page<> returns {content:[], totalElements,...}
+        setCreditors(page.content);
+      } catch (err) {
+        console.error(err);
+        alert('Error fetching creditors');
+      } finally {
+        setLoading(false);
+      }
+    }
+    loadCreditors();
+  }, []);
+
+  
+
+ const filteredCreditors = creditors.filter((creditor: Creditor) => 
+  (creditor.name ?? '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+  (creditor.contact ?? '').toLowerCase().includes(searchTerm.toLowerCase())
+);
 
   const totalPayable: number = creditors.reduce((sum: number, creditor: Creditor) => sum + creditor.balance, 0);
   const overdueAmount: number = creditors
@@ -91,50 +71,52 @@ export default function Creditors() {
     setShowPaymentModal(true);
   };
 
-  const processPayment = (): void => {
-    if (!paymentAmount || isNaN(parseFloat(paymentAmount)) || parseFloat(paymentAmount) <= 0) {
-      alert('Please enter a valid payment amount');
-      return;
+ const processPayment = async (): Promise<void> => {
+  if (!paymentAmount || isNaN(parseFloat(paymentAmount)) || parseFloat(paymentAmount) <= 0) {
+    alert('Please enter a valid payment amount');
+    return;
+  }
+
+  const amount: number = parseFloat(paymentAmount);
+
+  if (selectedCreditor && amount > selectedCreditor.balance) {
+    alert('Payment amount cannot exceed the balance');
+    return;
+  }
+
+  if (!selectedCreditor) return;
+
+  try {
+    // 1️⃣  Send payment to backend
+    const res = await fetch(`http://localhost:8080/api/creditors/${selectedCreditor.id}/pay`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ amount })
+    });
+
+    if (!res.ok) {
+      throw new Error(`Server error: ${res.status}`);
     }
 
-    const amount: number = parseFloat(paymentAmount);
-    if (selectedCreditor && amount > selectedCreditor.balance) {
-      alert('Payment amount cannot exceed the balance');
-      return;
-    }
+    // 2️⃣  Get updated creditor from backend
+    const updatedCreditor: Creditor = await res.json();
 
-    if (selectedCreditor) {
-      // Update the creditor's balance
-      setCreditors(prev => prev.map(c => 
-        c.id === selectedCreditor.id 
-          ? { 
-              ...c, 
-              balance: c.balance - amount,
-              status: (c.balance - amount) > 0 ? 'Pending' : 'Paid',
-              lastPayment: new Date().toISOString().split('T')[0],
-              paymentAmount: amount
-            } 
-          : c
-      ));
+    // 3️⃣  Update local state with backend result
+    setCreditors(prev =>
+      prev.map(c => c.id === updatedCreditor.id ? updatedCreditor : c)
+    );
 
-      setShowPaymentModal(false);
-      setSelectedCreditor(null);
-      alert(`Payment of $${amount.toFixed(2)} recorded successfully to ${selectedCreditor.name}`);
-    }
-  };
+    setShowPaymentModal(false);
+    setSelectedCreditor(null);
+    alert(`Payment of $${amount.toFixed(2)} recorded successfully to ${selectedCreditor.name}`);
+  } catch (err) {
+    console.error('Payment failed:', err);
+    alert('Failed to record payment. Please try again.');
+  }
+};
 
-  const getStatusBadgeClass = (status: PaymentStatus): string => {
-    switch (status) {
-      case 'Overdue':
-        return 'bg-red-100 text-red-800';
-      case 'Pending':
-        return 'bg-yellow-100 text-yellow-800';
-      case 'Paid':
-        return 'bg-green-100 text-green-800';
-      default:
-        return 'bg-gray-100 text-gray-800';
-    }
-  };
+
+  
 
   return (
     <div className="max-w-7xl mx-auto">
@@ -226,8 +208,9 @@ export default function Creditors() {
                       <div className="flex items-center">
                         <div className="flex-shrink-0 h-10 w-10">
                           <div className="h-10 w-10 rounded-full bg-indigo-500 flex items-center justify-center text-white font-medium">
-                            {creditor.name.charAt(0)}
-                          </div>
+  {(creditor.name ?? '').charAt(0) || '?'}
+</div>
+                         
                         </div>
                         <div className="ml-4">
                           <div className="text-sm font-medium text-gray-900">{creditor.name}</div>
@@ -259,7 +242,7 @@ export default function Creditors() {
                       {creditor.creditTerms}
                     </td>
                     <td className="px-4 py-4 whitespace-nowrap">
-                      <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusBadgeClass(creditor.status)}`}>
+                      <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full }`}>
                         {creditor.status}
                       </span>
                     </td>

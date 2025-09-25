@@ -561,66 +561,200 @@ export default function Purchases() {
       )}
 
       {/* Edit Modal */}
-      {isEditOpen && selectedPurchase && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full">
-            <div className="bg-gradient-to-r from-blue-600 to-blue-700 px-6 py-4 rounded-t-2xl">
-              <h2 className="text-xl font-bold text-white">Edit Purchase</h2>
-            </div>
+     {isEditOpen && selectedPurchase && (
+  <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50 overflow-y-auto">
+    <div className="bg-white rounded-2xl shadow-2xl max-w-4xl w-full mx-auto my-8">
+      {/* Header */}
+      <div className="bg-gradient-to-r from-blue-600 to-blue-700 px-6 py-4 flex justify-between items-center">
+        <h2 className="text-xl font-bold text-white">Edit Purchase #{selectedPurchase.id}</h2>
+        <button
+          onClick={() => setIsEditOpen(false)}
+          className="text-white hover:bg-blue-500 p-2 rounded-full transition-colors"
+        >
+          <XMarkIcon className="h-5 w-5" />
+        </button>
+      </div>
 
-            <div className="p-6 space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Supplier</label>
-                <input
-                  type="text"
-                  value={editSupplier}
-                  onChange={(e) => setEditSupplier(e.target.value)}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Amount Paid</label>
-                <input
-                  type="number"
-                  value={editAmountPaid}
-                  onChange={(e) => setEditAmountPaid(Number(e.target.value))}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Status</label>
-                <select
-                  value={editStatus}
-                  onChange={(e) => setEditStatus(e.target.value)}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                >
-                  <option>Completed</option>
-                  <option>Partial</option>
-                  <option>Pending</option>
-                </select>
-              </div>
-
-              <div className="flex justify-end space-x-3 pt-4">
-                <button 
-                  onClick={() => setIsEditOpen(false)} 
-                  className="px-6 py-3 border border-gray-300 text-gray-700 rounded-xl hover:bg-gray-50 transition-colors duration-200 font-medium"
-                >
-                  Cancel
-                </button>
-                <button 
-                  onClick={handleSaveEdit} 
-                  className="px-6 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-colors duration-200 font-medium"
-                >
-                  Save Changes
-                </button>
-              </div>
-            </div>
+      <div className="p-6 space-y-6 max-h-[80vh] overflow-y-auto">
+        {/* Supplier & Date */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div>
+            <label className="block text-sm font-semibold text-gray-700 mb-2">Supplier</label>
+            <select
+              value={editSupplier}
+              onChange={(e) => setEditSupplier(e.target.value)}
+              className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="">Select Supplier</option>
+              {suppliers.map(s => (
+                <option key={s.id} value={s.name}>{s.name}</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="block text-sm font-semibold text-gray-700 mb-2">Purchase Date</label>
+            <input
+              type="date"
+              defaultValue={selectedPurchase.purchaseDate}
+              onChange={(e) =>
+                setSelectedPurchase(prev => prev ? {...prev, purchaseDate: e.target.value} : prev)
+              }
+              className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500"
+            />
           </div>
         </div>
-      )}
 
+        {/* Items Table */}
+        <div>
+          <h3 className="text-lg font-semibold text-gray-900 mb-4">Purchased Items</h3>
+          <div className="border border-gray-200 rounded-lg overflow-hidden">
+            <div className="grid grid-cols-12 gap-4 p-3 bg-gray-50 font-medium text-sm text-gray-700">
+              <div className="col-span-4">Item</div>
+              <div className="col-span-2 text-center">Quantity</div>
+              <div className="col-span-2 text-right">Price</div>
+              <div className="col-span-2 text-right">Total</div>
+              <div className="col-span-2 text-center">Action</div>
+            </div>
+            {selectedPurchase.items.map((item, idx) => (
+              <div key={item.id} className="grid grid-cols-12 gap-4 p-3 border-t">
+                <div className="col-span-4">
+                  <input
+                    value={item.productName}
+                    onChange={(e) => {
+                      const updated = [...selectedPurchase.items];
+                      updated[idx].productName = e.target.value;
+                      setSelectedPurchase({...selectedPurchase, items: updated});
+                    }}
+                    className="w-full border rounded px-2 py-1"
+                  />
+                </div>
+                <div className="col-span-2 text-center">
+                  <input
+                    type="number"
+                    min={1}
+                    value={item.quantity}
+                    onChange={(e) => {
+                      const qty = Number(e.target.value);
+                      const updated = [...selectedPurchase.items];
+                      updated[idx].quantity = qty;
+                      updated[idx].total = qty * updated[idx].price;
+                      setSelectedPurchase({...selectedPurchase, items: updated});
+                    }}
+                    className="w-full border rounded px-2 py-1 text-center"
+                  />
+                </div>
+                <div className="col-span-2 text-right">
+                  <input
+                    type="number"
+                    step="0.01"
+                    value={item.price}
+                    onChange={(e) => {
+                      const price = Number(e.target.value);
+                      const updated = [...selectedPurchase.items];
+                      updated[idx].price = price;
+                      updated[idx].total = price * updated[idx].quantity;
+                      setSelectedPurchase({...selectedPurchase, items: updated});
+                    }}
+                    className="w-full border rounded px-2 py-1 text-right"
+                  />
+                </div>
+                <div className="col-span-2 text-right font-semibold">
+                  ksh{(item.price * item.quantity).toFixed(2)}
+                </div>
+                <div className="col-span-2 text-center">
+                  <button
+                    onClick={() => {
+                      const updated = [...selectedPurchase.items];
+                      updated.splice(idx, 1);
+                      setSelectedPurchase({...selectedPurchase, items: updated});
+                    }}
+                    className="text-red-600 hover:underline"
+                  >
+                    Remove
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Payment Info */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div>
+            <label className="block text-sm font-semibold text-gray-700 mb-2">Amount Paid (ksh)</label>
+            <input
+              type="number"
+              value={editAmountPaid}
+              onChange={(e) => setEditAmountPaid(Number(e.target.value))}
+              className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-semibold text-gray-700 mb-2">Total Amount</label>
+            <p className="px-4 py-3 bg-gray-100 rounded-xl">
+              ksh{selectedPurchase.items.reduce((t, i) => t + i.total, 0).toFixed(2)}
+            </p>
+          </div>
+          <div>
+            <label className="block text-sm font-semibold text-gray-700 mb-2">Balance Due</label>
+            <p className="px-4 py-3 bg-gray-100 rounded-xl">
+              ksh{(
+                selectedPurchase.items.reduce((t, i) => t + i.total, 0) - editAmountPaid
+              ).toFixed(2)}
+            </p>
+          </div>
+        </div>
+
+        {/* Save / Cancel */}
+        <div className="flex justify-end space-x-3 pt-4">
+          <button
+            onClick={() => setIsEditOpen(false)}
+            className="px-6 py-3 border border-gray-300 text-gray-700 rounded-xl hover:bg-gray-50"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={async () => {
+              const total = selectedPurchase.items.reduce((t, i) => t + i.total, 0);
+              if (editAmountPaid > total) {
+                alert("Amount Paid cannot exceed Total");
+                return;
+              }
+              const balance = total - editAmountPaid;
+              const status =
+                editAmountPaid === 0
+                  ? "Pending"
+                  : editAmountPaid < total
+                  ? "Partial"
+                  : "Completed";
+
+              const updatedPurchase = {
+                ...selectedPurchase,
+                supplierName: editSupplier,
+                amountPaid: editAmountPaid,
+                totalAmount: total,
+                balanceDue: balance,
+                status,
+              };
+
+              await fetch(`${API_BASE_URL}/${selectedPurchase.id}`, {
+                method: "PUT",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(updatedPurchase),
+              });
+
+              setIsEditOpen(false);
+              fetchPurchases();
+            }}
+            className="px-6 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700"
+          >
+            Save Changes
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+)}
       {/* New Purchase Modal */}
       {isNewOpen && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50 overflow-y-auto">
