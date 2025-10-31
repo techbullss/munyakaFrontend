@@ -391,7 +391,7 @@ const fetchAllData = async () => {
           <div className="bg-white p-6 rounded-lg shadow-md border-l-4 border-blue-500">
             <h3 className="text-sm text-gray-500 uppercase font-semibold">Total Sales Amount</h3>
             <p className="text-2xl font-bold text-gray-800">
-              ${(summary.totalAmount || 0).toFixed(2)}
+              KSH{(summary.totalAmount || 0).toFixed(2)}
             </p>
             <div className="mt-2 text-xs text-gray-500">
               {activePeriod ? `For ${activePeriod}` : "All time sales"}
@@ -400,14 +400,14 @@ const fetchAllData = async () => {
           <div className="bg-white p-6 rounded-lg shadow-md border-l-4 border-green-500">
             <h3 className="text-sm text-gray-500 uppercase font-semibold">Profit</h3>
             <p className="text-2xl font-bold text-gray-800">
-              ${(summary.profit || 0).toFixed(2)}
+              KSH{(summary.profit || 0).toFixed(2)}
             </p>
             <div className="mt-2 text-xs text-gray-500">Net profit</div>
           </div>
           <div className="bg-white p-6 rounded-lg shadow-md border-l-4 border-red-500">
             <h3 className="text-sm text-gray-500 uppercase font-semibold">Expenditure</h3>
             <p className="text-2xl font-bold text-gray-800">
-              ${(summary.expenditure || 0).toFixed(2)}
+              KSH{(summary.expenditure || 0).toFixed(2)}
             </p>
             <div className="mt-2 text-xs text-gray-500">Total expenses</div>
           </div>
@@ -482,11 +482,11 @@ const fetchAllData = async () => {
                             ? "bg-red-100 text-red-800" 
                             : "bg-green-100 text-green-800"
                         }`}>
-                          kes{(sale.balance || 0).toFixed(2)}
+                          ksh{(sale.balance || 0).toFixed(2)}
                         </span>
                       </td>
                       <td className="p-3 font-medium text-blue-600">
-                        kes{(sale.profit || 0).toFixed(2)}
+                        ksh{(sale.profit || 0).toFixed(2)}
                       </td>
                       <td className="p-3">
           <span

@@ -22,7 +22,7 @@ export default function Sidebar() {
 
   const navigationItems = [
     { name: 'Dashboard', path: '/dashboard', icon: HomeIcon },
-    { name: 'POS', path: '/dashboard/POS', icon: ShoppingCartIcon },
+   
     { name: 'Inventory', path: '/dashboard/Inventory', icon: ClipboardDocumentListIcon },
     { name: 'Sales', path: '/dashboard/Sales', icon: CurrencyDollarIcon },
     { name: 'Purchases', path: '/dashboard/Purchases', icon: TruckIcon },
@@ -33,7 +33,7 @@ export default function Sidebar() {
     { name: 'Expenditures', path: '/dashboard/Expenditure', icon: CurrencyDollarIcon },
     { name: 'Reports', path: '/dashboard/Reports', icon: ChartBarIcon },
     { name: 'Users', path: '/dashboard/Users', icon: UserGroupIcon },
-    { name: 'Settings', path: '/dashboard/Settings', icon: CogIcon },
+    
     { name: 'Rental item Management', path: '/dashboard/RentalManagement', icon: UsersIcon },
     { name: 'Item Rent', path: '/dashboard/ItemRent', icon: ClipboardDocumentListIcon },
   ];
@@ -41,9 +41,7 @@ export default function Sidebar() {
   const isActive = (path: string) => pathname === path;
 
   return (
-    <aside
-      
-    >
+    <aside className={`bg-gray-200 border-r border-gray-200 p-4 h-screen sticky top-0 ${sidebarOpen ? 'block' : 'hidden'} md:block`}>
       <nav className="flex flex-col ">
         {navigationItems.map((item) => {
           const Icon = item.icon;

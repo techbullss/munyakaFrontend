@@ -125,10 +125,7 @@ export default function Creditors() {
           <h1 className="text-2xl font-bold text-gray-800">Creditors Management</h1>
           <p className="text-gray-600">Manage suppliers and vendors your business owes money to</p>
         </div>
-        <button className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md flex items-center">
-          <PlusIcon className="h-5 w-5 mr-1" />
-          Add Creditor
-        </button>
+       
       </div>
 
       {/* Summary Cards */}
@@ -139,7 +136,7 @@ export default function Creditors() {
               <CurrencyDollarIcon className="h-6 w-6 text-blue-600" />
             </div>
             <div className="ml-4">
-              <h2 className="text-lg font-semibold text-gray-900">${totalPayable.toFixed(2)}</h2>
+              <h2 className="text-lg font-semibold text-gray-900">Ksh{totalPayable.toFixed(2)}</h2>
               <p className="text-sm text-gray-500">Total Payable</p>
             </div>
           </div>
@@ -151,7 +148,7 @@ export default function Creditors() {
               <ExclamationTriangleIcon className="h-6 w-6 text-red-600" />
             </div>
             <div className="ml-4">
-              <h2 className="text-lg font-semibold text-gray-900">${overdueAmount.toFixed(2)}</h2>
+              <h2 className="text-lg font-semibold text-gray-900">Ksh{overdueAmount.toFixed(2)}</h2>
               <p className="text-sm text-gray-500">Overdue Amount</p>
             </div>
           </div>
