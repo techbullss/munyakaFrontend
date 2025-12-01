@@ -31,7 +31,7 @@ export default function Expenditures() {
         size: size.toString(),
         ...(categoryFilter !== 'All Categories' && { category: categoryFilter }),
         ...(searchTerm && { search: searchTerm }),
-      } as any);
+      } as Record<string, string>);
       const res = await fetch(`http://localhost:8080/api/expenditures?${query.toString()}`);
       const data = await res.json();
       setExpenditures(data.content);
@@ -224,7 +224,7 @@ interface ModalProps {
 function Modal({ expense, onClose, onSave }: ModalProps) {
   const [form, setForm] = useState<Partial<Expenditure>>(expense || { date: '', category: '', description: '', amount: 0, paymentMethod: '' });
 
-  const handleChange = (key: keyof Expenditure, value: any) => {
+  const handleChange = (key: keyof Expenditure, value: string | number) => {
     setForm(prev => ({ ...prev, [key]: value }));
   };
 

@@ -33,6 +33,10 @@ interface ItemResponse {
   imageUrls: string[];
   variants: { [key: string]: string };
 }
+interface Supplier {
+  id: number;
+  name: string;
+}
 
 const API_BASE_URL = 'http://localhost:8080/api';
 
@@ -105,6 +109,9 @@ const inventoryApi = {
 
 // Main Inventory Component
 export default function InventoryComponent() {
+  const [page, setPage] = useState(0);
+const [size] = useState(10);
+const [totalPages, setTotalPages] = useState(0);
  const [isModalOpen, setIsModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isRestockModalOpen, setIsRestockModalOpen] = useState(false);
@@ -113,26 +120,57 @@ export default function InventoryComponent() {
   const [items, setItems] = useState<ItemResponse[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [loading, setLoading] = useState(true);
-
+  const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   // Load items on component mount
-  useEffect(() => {
-    loadItems();
-  }, []);
+useEffect(() => {
+  loadItems();      // reload items when page changes
+}, [page]);
 
-  const loadItems = async () => {
+useEffect(() => {
+  loadSuppliers();  // load suppliers ONLY once
+}, []);
+
+  const loadSuppliers = async () => {
     try {
       setLoading(true);
-      const response = await fetch('http://localhost:8080/api/items');
-      if (!response.ok) throw new Error('Failed to fetch items');
-      const itemsData = await response.json();
-      setItems(itemsData);
+      const response = await fetch('http://localhost:8080/api/suppliers');
+      if (!response.ok) throw new Error('Failed to fetch suppliers');
+      const suppliersData = await response.json();
+      setSuppliers(suppliersData.content);
     } catch (error) {
-      console.error('Error loading items:', error);
-      alert('Failed to load items');
+      console.error('Error loading suppliers:', error);
+              window.showToast("failed", "error");
+
     } finally {
       setLoading(false);
     }
-  };
+  }
+
+
+// totalPages is declared earlier; reuse setTotalPages from the first declaration
+
+const loadItems = async () => {
+  try {
+    setLoading(true);
+
+    const response = await fetch(
+      `http://localhost:8080/api/items?page=${page}&size=${size}`
+    );
+
+    if (!response.ok) throw new Error('Failed to fetch items');
+
+    const data = await response.json();
+
+    setItems(data.content);       // paginated items
+    setTotalPages(data.totalPages);
+  } catch (error) {
+    console.error('Error loading items:', error);
+    window.showToast("Failed to load items", "error");
+  } finally {
+    setLoading(false);
+  }
+};
+
 
   const handleSearch = async () => {
     try {
@@ -143,7 +181,7 @@ export default function InventoryComponent() {
       setItems(searchResults);
     } catch (error) {
       console.error('Error searching items:', error);
-      alert('Failed to search items');
+      window.showToast("failed", "error");
     } finally {
       setLoading(false);
     }
@@ -160,7 +198,7 @@ export default function InventoryComponent() {
       setIsEditModalOpen(true);
     } catch (error) {
       console.error('Error fetching item:', error);
-      alert('Failed to load item details');
+      window.showToast("failed", "error");
     } finally {
       setLoading(false);
     }
@@ -177,7 +215,7 @@ export default function InventoryComponent() {
       setIsRestockModalOpen(true);
     } catch (error) {
       console.error('Error fetching item:', error);
-      alert('Failed to load item details');
+      window.showToast("failed", "error");
     } finally {
       setLoading(false);
     }
@@ -194,7 +232,7 @@ export default function InventoryComponent() {
       setIsDeleteModalOpen(true);
     } catch (error) {
       console.error('Error fetching item:', error);
-      alert('Failed to load item details');
+      window.showToast("failed", "error");
     } finally {
       setLoading(false);
     }
@@ -327,7 +365,30 @@ export default function InventoryComponent() {
               )}
             </tbody>
           </table>
+          
         )}
+        <div className="flex justify-between mt-4">
+  <button
+    onClick={() => setPage(prev => Math.max(prev - 1, 0))}
+    disabled={page === 0}
+    className="px-3 py-2 bg-gray-200 rounded disabled:opacity-50"
+  >
+    Previous
+  </button>
+
+  <span className="text-sm text-gray-700">
+    Page {page + 1} of {totalPages}
+  </span>
+
+  <button
+    onClick={() => setPage(prev => prev + 1)}
+    disabled={page + 1 >= totalPages}
+    className="px-3 py-2 bg-gray-200 rounded disabled:opacity-50"
+  >
+    Next
+  </button>
+</div>
+
         {/* Add Item Modal */}
         {isModalOpen && (
           <HardwareItemModal
@@ -415,13 +476,13 @@ export default function InventoryComponent() {
       if (!response.ok) throw new Error('Failed to restock item');
       
       console.log('Item restocked successfully');
-      alert(`Successfully added ${quantity} units to stock!`);
+      window.showToast("Item restocked successfully!", "success");
       onUpdate(); // Refresh the items list
       onClose(); // Close the modal
       
     } catch (error) {
       console.error('Error restocking item:', error);
-      alert('Failed to restock item. Please try again.');
+      window.showToast("Failed to restock item. Please try again.", "error");
     } finally {
       setLoading(false);
     }
@@ -530,13 +591,13 @@ function DeleteModal({ item, onClose, onUpdate }: {
       if (!response.ok) throw new Error('Failed to delete item');
       
       console.log('Item deleted successfully');
-      alert('Item deleted successfully!');
+      window.showToast("Item deleted successfully!", "success");
       onUpdate(); // Refresh the items list
       onClose(); // Close the modal
       
     } catch (error) {
       console.error('Error deleting item:', error);
-      alert('Failed to delete item. Please try again.');
+      window.showToast("Failed to delete item. Please try again.", "error");
     } finally {
       setLoading(false);
     }
@@ -577,7 +638,7 @@ function DeleteModal({ item, onClose, onUpdate }: {
           
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              Type <span className="font-bold">"{item.itemName}"</span> to confirm deletion
+              Type <span className="font-bold">{item.itemName}</span> to confirm deletion
             </label>
             <input
               type="text"
@@ -628,11 +689,14 @@ function HardwareItemModal({ onClose }: { onClose: () => void }) {
     'Welding Materials'
   ];
 
-  // Selling units
+  // Selling units - each is independent
   const sellingUnits = [
+    { value: '', label: 'select selling unit' },
     { value: 'pcs', label: 'Pieces' },
-    { value: 'boxes', label: 'Boxes' },
-    { value: 'length', label: 'Length' }
+    { value: 'kg', label: 'Kilograms' },
+    { value: 'meters', label: 'Meters' },
+    { value: 'roll', label: 'Roll' },
+    { value: 'bag', label: 'Bag' }
   ];
 
   // Variant templates for each category
@@ -659,15 +723,13 @@ function HardwareItemModal({ onClose }: { onClose: () => void }) {
     stockQuantity: '',
     SellingPrice: '',
     supplier: '',
-    sellingUnit: 'pcs',
-    lengthType: 'full', // For items sold by length
-    piecesPerBox: '', // For items sold in boxes
+    sellingUnit: '',
     variants: []
   });
 
   const [selectedVariants, setSelectedVariants] = useState<string[]>([]);
   const [variantValues, setVariantValues] = useState<{ [key: string]: string }>({});
-  const [uploadedImages, setUploadedImages] = useState<{ id: number; file: any; name: string }[]>([]);
+  const [uploadedImages, setUploadedImages] = useState<{ id: number; file: File; name: string }[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Handle category change
@@ -679,14 +741,13 @@ function HardwareItemModal({ onClose }: { onClose: () => void }) {
   };
 
   // Handle selling unit change
-  const handleUnitChange = (e: { target: { value: any; }; }) => {
-    const sellingUnit = e.target.value;
+  const handleUnitChange = (e: { target: { value: string; }; }) => {
+    const sellingUnit = e.target.value || 'pcs';
     setFormData({ 
       ...formData, 
       sellingUnit,
-      // Reset related fields when unit changes
-      piecesPerBox: sellingUnit === 'boxes' ? formData.piecesPerBox : '',
-      lengthType: sellingUnit === 'length' ? formData.lengthType : 'full'
+      // Reset stock quantity when unit changes
+      stockQuantity: ''
     });
   };
 
@@ -696,11 +757,11 @@ function HardwareItemModal({ onClose }: { onClose: () => void }) {
   };
 
   // Handle image upload
-  const handleImageUpload = (e: { target: { files: any; value: string; }; }) => {
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files || files.length === 0) return;
 
-    const newImages: { id: number; file: any; name: any; }[] = [];
+    const newImages: { id: number; file: File; name: string; }[] = [];
     for (let i = 0; i < files.length; i++) {
       const file = files[i];
       
@@ -729,47 +790,142 @@ function HardwareItemModal({ onClose }: { onClose: () => void }) {
     }
   };
 
-  // Handle form submission
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    try {
-      // Convert variants from array to map format expected by backend
-      const variantsMap: { [key: string]: string } = {};
-      selectedVariants.forEach(variant => {
-        if (variantValues[variant]) {
-          variantsMap[variant] = variantValues[variant];
-        }
-      });
-
-      // Prepare the data for API
-      const itemData: ItemRequest = {
-        itemName: formData.itemName,
-        category: formData.category,
-        description: formData.description,
-        price: parseFloat(formData.price),
-        stockQuantity: parseInt(formData.stockQuantity),
-        sellingPrice: parseFloat(formData.SellingPrice),
-        supplier: formData.supplier,
-        sellingUnit: formData.sellingUnit.toUpperCase(),
-        lengthType: formData.sellingUnit === 'length' ? formData.lengthType.toUpperCase() : undefined,
-        piecesPerBox: formData.sellingUnit === 'boxes' ? parseInt(formData.piecesPerBox) : undefined,
-        images: uploadedImages.map(img => img.name),
-        variants: variantsMap
-      };
-
-      // Send to backend
-      const response = await inventoryApi.createItem(itemData);
-      
-      console.log('Item created successfully:', response);
-      alert('Item submitted successfully!');
-      onClose();
-      await loadItems(); // Refresh the items list
-    } catch (error) {
-      console.error('Error creating item:', error);
-      alert('Failed to create item. Please try again.');
+  // Get quantity label based on selling unit
+  const getQuantityLabel = () => {
+    switch (formData.sellingUnit) {
+      case 'kg':
+        return 'Weight Quantity (kg)';
+      case 'meters':
+        return 'Length Quantity (meters)';
+      case 'roll':
+        return 'Number of Rolls';
+      case 'bag':
+        return 'Number of Bags';
+      case 'pcs':
+        return 'Number of Pieces';
+      default:
+        return 'Stock Quantity';
     }
   };
+
+  // Get quantity placeholder based on selling unit
+  const getQuantityPlaceholder = () => {
+    switch (formData.sellingUnit) {
+      case 'kg':
+        return 'Enter weight in kilograms';
+      case 'meters':
+        return 'Enter length in meters';
+      case 'roll':
+        return 'Enter number of rolls';
+      case 'bag':
+        return 'Enter number of bags';
+      case 'pcs':
+        return 'Enter number of pieces';
+      default:
+        return 'Enter quantity';
+    }
+  };
+
+  // Get step value for quantity input
+  const getQuantityStep = () => {
+    switch (formData.sellingUnit) {
+      case 'kg':
+        return '0.1'; // Allow decimal for kilograms
+      case 'meters':
+        return '0.01'; // Allow decimal for meters
+      case 'roll':
+        return '1'; // Whole numbers for rolls
+      case 'bag':
+        return '1'; // Whole numbers for bags
+      case 'pcs':
+        return '1'; // Whole numbers for pieces
+      default:
+        return '1';
+    }
+  };
+
+  // Handle form submission
+ const handleSubmit = async (e: React.FormEvent) => {
+  e.preventDefault();
+  
+  try {
+    // Convert variants from array to map format expected by backend
+    const variantsMap: { [key: string]: string } = {};
+    selectedVariants.forEach(variant => {
+      if (variantValues[variant]) {
+        variantsMap[variant] = variantValues[variant];
+      }
+    });
+
+    // Handle stock quantity conversion based on unit
+    let stockQuantity: number;
+    if (formData.sellingUnit === 'kg' || formData.sellingUnit === 'meters') {
+      stockQuantity = parseFloat(formData.stockQuantity);
+    } else {
+      stockQuantity = parseInt(formData.stockQuantity);
+    }
+
+    // Validate all required fields
+    if (!formData.itemName || !formData.category || !formData.supplier) {
+      window.showToast("Please fill in all required fields", "error");
+      return;
+    }
+
+    if (isNaN(stockQuantity) || stockQuantity < 0) {
+      window.showToast("Please enter a valid quantity", "error");
+      return;
+    }
+
+    const price = parseFloat(formData.price);
+    const sellingPrice = parseFloat(formData.SellingPrice);
+
+    if (isNaN(price) || isNaN(sellingPrice)) {
+      window.showToast("Please enter valid prices", "error");
+      return;
+    }
+
+    if (sellingPrice <= price) {
+      window.showToast("Selling price must be greater than buying price", "error");
+      return;
+    }
+
+    // Prepare the data for API - MATCHING ItemResponse INTERFACE
+    const itemData = {
+      itemName: formData.itemName,
+      category: formData.category,
+      description: formData.description,
+      price: price,
+      stockQuantity: stockQuantity,
+      sellingPrice: sellingPrice,
+      supplier: formData.supplier,
+      sellingUnit: formData.sellingUnit.toUpperCase(), // Convert to uppercase
+      imageUrls: uploadedImages.map(img => img.name), // Changed from 'images' to 'imageUrls'
+      variants: variantsMap
+      // lengthType and piecesPerBox are optional based on your interface
+    };
+
+    console.log('Submitting item data:', itemData);
+
+    // Send to backend
+    const response = await inventoryApi.createItem(itemData);
+    
+    console.log('Item created successfully:', response);
+    window.showToast("Item created successfully!", "success");
+    onClose();
+    await loadItems(); // Refresh the items list
+  } catch (error: any) {
+    console.error('Error creating item:', error);
+    
+    // More specific error messages
+    if (error.response?.data?.message) {
+      window.showToast(`Failed to create item: ${error.response.data.message}`, "error");
+    } else if (error.message) {
+      window.showToast(`Failed to create item: ${error.message}`, "error");
+    } else {
+      window.showToast("Failed to create item. Please try again.", "error");
+    }
+  }
+};
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
@@ -830,49 +986,6 @@ function HardwareItemModal({ onClose }: { onClose: () => void }) {
             </select>
           </div>
           
-          {/* Additional fields based on selling unit */}
-          {formData.sellingUnit === 'boxes' && (
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Pieces per Box</label>
-              <input
-                type="number"
-                value={formData.piecesPerBox}
-                onChange={(e) => setFormData({ ...formData, piecesPerBox: e.target.value })}
-                min="1"
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                required
-              />
-            </div>
-          )}
-          
-          {formData.sellingUnit === 'length' && (
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Length Type</label>
-              <div className="flex space-x-4">
-                <label className="inline-flex items-center">
-                  <input
-                    type="radio"
-                    value="full"
-                    checked={formData.lengthType === 'full'}
-                    onChange={(e) => setFormData({ ...formData, lengthType: e.target.value })}
-                    className="text-blue-600 focus:ring-blue-500"
-                  />
-                  <span className="ml-2">Full Length</span>
-                </label>
-                <label className="inline-flex items-center">
-                  <input
-                    type="radio"
-                    value="half"
-                    checked={formData.lengthType === 'half'}
-                    onChange={(e) => setFormData({ ...formData, lengthType: e.target.value })}
-                    className="text-blue-600 focus:ring-blue-500"
-                  />
-                  <span className="ml-2">Half Length</span>
-                </label>
-              </div>
-            </div>
-          )}
-          
           {/* Description */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
@@ -886,51 +999,58 @@ function HardwareItemModal({ onClose }: { onClose: () => void }) {
           
           {/* Price and Stock Quantity */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-      <div>
-  <label className="block text-sm font-medium text-gray-700 mb-1">
-    Selling Price (KES)
-  </label>
-  <input
-    type="number"
-    value={formData.SellingPrice}
-    onChange={(e) =>
-      setFormData({ ...formData, SellingPrice: e.target.value })
-    }
-    min="0"
-    step="0.01"
-    className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 ${
-      formData.price && parseFloat(formData.SellingPrice) < parseFloat(formData.price) * 1.2
-        ? "border-red-500 focus:ring-red-500"
-        : "border-gray-300 focus:ring-blue-500"
-    }`}
-    required
-  />
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Selling Price (KES)
+              </label>
+              <input
+                type="number"
+                value={formData.SellingPrice}
+                onChange={(e) =>
+                  setFormData({ ...formData, SellingPrice: e.target.value })
+                }
+                min="0"
+                step="0.01"
+                className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 ${
+                  formData.price && parseFloat(formData.SellingPrice) < parseFloat(formData.price)
+                    ? "border-red-500 focus:ring-red-500"
+                    : "border-gray-300 focus:ring-blue-500"
+                }`}
+                required
+              />
 
-  {formData.price &&
-    parseFloat(formData.SellingPrice) < parseFloat(formData.price) * 1.2 && (
-      <p className="text-red-600 text-sm mt-1">
-        Selling price must be at least <b>20% higher</b> than the buying price.
-      </p>
-    )}
-</div>
-
+              {formData.price &&
+                parseFloat(formData.SellingPrice) <= parseFloat(formData.price) && (
+                  <p className="text-red-600 text-sm mt-1">
+                    Selling price must be at least <b>Greater</b> than the buying price.
+                  </p>
+                )}
+            </div>
             
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                {formData.sellingUnit === 'boxes' ? 'Number of Boxes' : 
-                 formData.sellingUnit === 'length' ? 'Length Quantity' : 
-                 'Stock Quantity'}
+                {getQuantityLabel()}
               </label>
               <input
                 type="number"
                 value={formData.stockQuantity}
                 onChange={(e) => setFormData({ ...formData, stockQuantity: e.target.value })}
                 min="0"
+                step={getQuantityStep()}
+                placeholder={getQuantityPlaceholder()}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 required
               />
+              <p className="text-xs text-gray-500 mt-1">
+                {formData.sellingUnit === 'kg' && 'Enter the total weight in kilograms'}
+                {formData.sellingUnit === 'meters' && 'Enter the total length in meters'}
+                {formData.sellingUnit === 'roll' && 'Enter the total number of rolls'}
+                {formData.sellingUnit === 'bag' && 'Enter the total number of bags'}
+                {formData.sellingUnit === 'pcs' && 'Enter the total number of pieces'}
+              </p>
             </div>
           </div>
+          
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Buying Price (KES)</label>
@@ -949,61 +1069,40 @@ function HardwareItemModal({ onClose }: { onClose: () => void }) {
           {/* Supplier */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Supplier</label>
-            <input
-              type="text"
+            <select
               value={formData.supplier}
               onChange={(e) => setFormData({ ...formData, supplier: e.target.value })}
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
+            >
+              <option value="">Select a supplier</option>
+              {suppliers.map((supplier) => (
+                <option key={supplier.id} value={supplier.name}>
+                  {supplier.name}
+                </option>
+              ))}
+            </select>
           </div>
           
           {/* Image Upload */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Item Images</label>
+          
             
-            {/* Hidden file input */}
-            <input
-              type="file"
-              ref={fileInputRef}
-              onChange={handleImageUpload}
-              multiple
-              accept="image/*"
-              className="hidden"
-            />
-            
-            {/* Upload button */}
-            <button
-              type="button"
-              onClick={handleAddImageClick}
-              className="flex items-center justify-center gap-2 px-4 py-2 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 border border-gray-300 mb-4"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                <path fillRule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zM6.293 6.707a1 1 0 010-1.414l3-3a1 1 0 011.414 0l3 3a1 1 0 01-1.414 1.414L11 5.414V13a1 1 0 11-2 0V5.414L7.707 6.707a1 1 0 01-1.414 0z" clipRule="evenodd" />
-              </svg>
-              Upload Images
-            </button>
-            
-            {/* Image list (no previews) */}
             {uploadedImages.length > 0 && (
-              <div className="border rounded-md p-4 bg-gray-50">
-                <h3 className="text-sm font-medium text-gray-700 mb-2">Uploaded Images:</h3>
-                <ul className="space-y-2">
-                  {uploadedImages.map((image) => (
-                    <li key={image.id} className="flex items-center justify-between bg-white p-2 rounded-md border">
-                      <span className="text-sm text-gray-600 truncate">{image.name}</span>
-                      <button
-                        type="button"
-                        onClick={() => handleRemoveImage(image.id)}
-                        className="text-red-500 hover:text-red-700 ml-2"
-                        title="Remove image"
-                      >
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                          <path fillRule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clipRule="evenodd" />
-                        </svg>
-                      </button>
-                    </li>
-                  ))}
-                </ul>
+              <div className="mt-2 space-y-2">
+                {uploadedImages.map((image) => (
+                  <div key={image.id} className="flex items-center justify-between bg-gray-50 px-3 py-2 rounded">
+                    <span className="text-sm text-gray-700 truncate">{image.name}</span>
+                    <button
+                      type="button"
+                      onClick={() => handleRemoveImage(image.id)}
+                      className="text-red-500 hover:text-red-700"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                    </button>
+                  </div>
+                ))}
               </div>
             )}
           </div>

@@ -63,7 +63,7 @@ export default function Suppliers() {
       setCurrentPage(data.number);
     } catch (error) {
       console.error("Error fetching suppliers:", error);
-      alert("Error loading suppliers. Please try again.");
+        window.showToast("Error loading suppliers. Please try again.", "error");
     } finally {
       setLoading(false);
     }
@@ -74,7 +74,7 @@ export default function Suppliers() {
   }, [searchTerm]);
 
   // Handle form input changes
-  const handleInputChange = (e: { target: { name: any; value: any; }; }) => {
+  const handleInputChange = (e: { target: { name: string; value: string; }; }) => {
     const { name, value } = e.target;
     setFormData(prev => ({
       ...prev,
@@ -131,7 +131,7 @@ export default function Suppliers() {
         await fetchSuppliers(currentPage);
         resetForm();
         setIsModalOpen(false);
-        alert(editingSupplier ? 'Supplier updated successfully!' : 'Supplier added successfully!');
+        window.showToast(editingSupplier ? 'Supplier updated successfully!' : 'Supplier added successfully!', 'success');
       } else {
         const errorData = await response.json();
         throw new Error(errorData.message || 'Failed to save supplier');
@@ -139,9 +139,9 @@ export default function Suppliers() {
     } catch (error) {
       console.error('Error saving supplier:', error);
       if (error instanceof Error) {
-        alert(`Error: ${error.message}`);
+        window.showToast(`Error: ${error.message}`, "error");
       } else {
-        alert('An unknown error occurred');
+        window.showToast('An unknown error occurred', "error");
       }
     }
   };
@@ -172,15 +172,15 @@ export default function Suppliers() {
       const response = await fetch(`${API_BASE_URL}/${supplierId}`, { method: 'DELETE' });
       if (response.ok) {
         await fetchSuppliers(currentPage);
-        alert('Supplier deleted successfully!');
+        window.showToast('Supplier deleted successfully!', 'success');
       } else if (response.status === 409) {
-        alert('Cannot delete supplier with existing purchases. Please delete associated purchases first.');
+        window.showToast('Cannot delete supplier with existing purchases. Please delete associated purchases first.', 'error');
       } else {
         throw new Error('Failed to delete supplier');
       }
     } catch (error) {
       console.error('Error deleting supplier:', error);
-      alert('Error deleting supplier. Please try again.');
+      window.showToast('Error deleting supplier. Please try again.', 'error');
     }
   };
 
@@ -503,6 +503,6 @@ export default function Suppliers() {
   );
 }
 
-function setTotalPages(totalPages: any) {
+function setTotalPages(totalPages: number): void {
   throw new Error('Function not implemented.');
 }

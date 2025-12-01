@@ -8,6 +8,14 @@ export interface SaleItem {
 }
 
 export interface Sale {
+  createdAt: string;
+  timestamp: Date;
+  saleItems: SaleItem[];
+  total: number;
+  grandTotal: number;
+  amountPaid: number;
+  change: number;
+  note: string;
   id: number;
   customerPhone: string;
   customerName: string;

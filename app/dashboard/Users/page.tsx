@@ -82,7 +82,7 @@ export default function Users() {
   }, [searchTerm]);
 
   // Create or Update User
-  const saveUser = async (userData: any) => {
+  const saveUser = async (userData: unknown) => {
     try {
       const url = editingUser 
         ? `http://localhost:8080/api/users/${editingUser.id}`

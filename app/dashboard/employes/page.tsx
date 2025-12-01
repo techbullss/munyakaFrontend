@@ -6,7 +6,7 @@ import {
   PlusIcon,
   EnvelopeIcon,
   PhoneIcon,
-  UserIcon,
+
 } from '@heroicons/react/24/outline';
 interface EmployeeDTO {
   employee: Employee;
@@ -395,7 +395,7 @@ function EmployeeForm({
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleChange = (field: keyof Employee, value: any) => {
+  const handleChange = (field: keyof Employee, value: string | number | boolean | undefined) => {
     setForm((prev) => ({ ...prev, [field]: value }));
     if (errors[field]) setErrors((prev) => ({ ...prev, [field]: '' }));
   };
@@ -416,7 +416,7 @@ function EmployeeForm({
           {['name', 'email', 'phone', 'position'].map((field) => (
             <div key={field} className="mb-3">
               <input
-                value={(form as any)[field] || ''}
+                value={form[field as keyof Employee]?.toString() || ''}
                 onChange={(e) => handleChange(field as keyof Employee, e.target.value)}
                 placeholder={field[0].toUpperCase() + field.slice(1)}
                 className={`border p-2 w-full rounded focus:ring-2 focus:ring-blue-500 ${

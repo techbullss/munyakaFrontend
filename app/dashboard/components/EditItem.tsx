@@ -93,7 +93,7 @@ export default function EditItem({ item, onClose, onUpdate }: {
 
   const [selectedVariants, setSelectedVariants] = useState<string[]>([]);
   const [variantValues, setVariantValues] = useState<{ [key: string]: string }>(item.variants || {});
-  const [uploadedImages, setUploadedImages] = useState<{ id: number; file: any; name: string }[]>([]);
+  const [uploadedImages, setUploadedImages] = useState<{ id: number; file: File; name: string }[]>([]);
   const [loading, setLoading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -207,13 +207,13 @@ export default function EditItem({ item, onClose, onUpdate }: {
       if (!response.ok) throw new Error('Failed to update item');
       
       console.log('Item updated successfully:', response);
-      alert('Item updated successfully!');
+      window.showToast('Item updated successfully!', 'success');
       onUpdate(); // Refresh the items list
       onClose(); // Close the modal
       
     } catch (error) {
       console.error('Error updating item:', error);
-      alert('Failed to update item. Please try again.');
+      window.showToast('Failed to update item. Please try again.', 'error');
     } finally {
       setLoading(false);
     }

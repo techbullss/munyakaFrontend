@@ -3,7 +3,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
   HomeIcon,
-  ShoppingCartIcon,
+ 
   CurrencyDollarIcon,
   TruckIcon,
   UserGroupIcon,
@@ -11,7 +11,7 @@ import {
   UsersIcon,
   UserIcon,
   ChartBarIcon,
-  CogIcon,
+  
   ClipboardDocumentListIcon,
 } from '@heroicons/react/24/outline';
 import { useState } from 'react';
@@ -19,7 +19,7 @@ import { useState } from 'react';
 export default function Sidebar() {
   const pathname = usePathname();
   const [sidebarOpen, setSidebarOpen] = useState(true); // optional toggle
-
+setSidebarOpen(true);
   const navigationItems = [
     { name: 'Dashboard', path: '/dashboard', icon: HomeIcon },
    

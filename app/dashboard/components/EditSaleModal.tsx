@@ -53,7 +53,7 @@ export default function EditSaleModal({ sale, onClose, onSave }: EditSaleModalPr
     return { ...data, totalAmount, balance, paymentStatus };
   };
 
-  const handleChange = (field: keyof Sale, value: any) => {
+  const handleChange = (field: keyof Sale, value: string | number | undefined) => {
     setFormData((prev) => (prev ? recalcTotals({ ...prev, [field]: value }) : prev));
   };
 
@@ -99,7 +99,7 @@ export default function EditSaleModal({ sale, onClose, onSave }: EditSaleModalPr
       onClose();
     } catch (err) {
       console.error("Error updating sale:", err);
-      alert("Failed to update sale. Check console for details.");
+      window.showToast("Failed to update sale. Check console for details.", "error");
     }
   };
 

@@ -88,7 +88,7 @@ const [returnSaleId, setReturnSaleId] = useState<number | null>(null);
 // Run once on mount → fetch all data
 useEffect(() => {
   fetchAllData();
-}, []);
+}, [currentPage]);
 
 // Run when filters/pagination change → fetch filtered data
 useEffect(() => {
@@ -152,7 +152,8 @@ useEffect(() => {
       }
     } catch (err) {
       console.error("Error fetching sales:", err);
-      alert("Error fetching sales data. Please check the console for details.");
+      window.showToast("Failed to fetch sales data", "error");
+
     } finally {
       setIsLoading(false);
     }
@@ -161,7 +162,7 @@ useEffect(() => {
 const fetchAllData = async () => {
   setIsLoading(true);
   try {
-    let url = `${API_BASE_URL}?page=${currentPage}&size=${pageSize}&sortBy=saleDate&direction=desc`;
+    const url = `${API_BASE_URL}?page=${currentPage}&size=${pageSize}&sortBy=id&direction=desc`;
 
     console.log("Fetching all data from URL:", url);
 
@@ -195,7 +196,7 @@ const fetchAllData = async () => {
     });
   } catch (err) {
     console.error("Error fetching all sales:", err);
-    alert("Error fetching all sales data. Please check the console for details.");
+    window.showToast("Failed to fetch all sales data", "error");
   } finally {
     setIsLoading(false);
   }
@@ -204,20 +205,20 @@ const fetchAllData = async () => {
   const handleEdit = (saleId: number) => {
     console.log("Edit sale:", saleId);
     // Implement edit functionality
-    alert(`Edit functionality for sale #${saleId} would open here`);
+    window.showToast(`Edit functionality for sale #${saleId} would open here`, "info");
   };
 
   const handleView = (saleId: number) => {
     console.log("View sale:", saleId);
     // Implement view functionality
-    alert(`View details for sale #${saleId} would appear here`);
+    window.showToast(`View details for sale #${saleId} would appear here`, "info");
   };
 
   const handleDelete = (saleId: number) => {
     if (confirm("Are you sure you want to delete this sale?")) {
       console.log("Delete sale:", saleId);
       // Implement delete functionality
-      alert(`Sale #${saleId} would be deleted now`);
+      window.showToast(`Sale #${saleId} would be deleted now`, "info");
     }
   };
 
@@ -404,13 +405,7 @@ const fetchAllData = async () => {
             </p>
             <div className="mt-2 text-xs text-gray-500">Net profit</div>
           </div>
-          <div className="bg-white p-6 rounded-lg shadow-md border-l-4 border-red-500">
-            <h3 className="text-sm text-gray-500 uppercase font-semibold">Expenditure</h3>
-            <p className="text-2xl font-bold text-gray-800">
-              KSH{(summary.expenditure || 0).toFixed(2)}
-            </p>
-            <div className="mt-2 text-xs text-gray-500">Total expenses</div>
-          </div>
+          
           <div className="bg-white p-6 rounded-lg shadow-md border-l-4 border-purple-500">
             <h3 className="text-sm text-gray-500 uppercase font-semibold">Sales Deviation</h3>
             <p
@@ -516,7 +511,7 @@ const fetchAllData = async () => {
                               <path fillRule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clipRule="evenodd" />
                             </svg>
                           </button>
-                          <button 
+                         { /* <button 
                             onClick={() => setEditSale(sale)}
                             className="text-green-600 hover:text-green-800 transition-colors duration-200 p-1 rounded-full hover:bg-green-50"
                             title="Edit sale"
@@ -524,16 +519,8 @@ const fetchAllData = async () => {
                             <svg xmlns="http://www.w3.org2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
                               <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
                             </svg>
-                          </button>
-                          <button 
-                            onClick={() => handleDelete(sale.id)}
-                            className="text-red-600 hover:text-red-800 transition-colors duration-200 p-1 rounded-full hover:bg-red-50"
-                            title="Delete sale"
-                          >
-                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                              <path fillRule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clipRule="evenodd" />
-                            </svg>
-                          </button>
+                          </button>*/}
+                          
                           <button
   onClick={() => setReturnSaleId(sale.id)}
   className="text-purple-600 hover:text-purple-800 transition-colors duration-200 p-1 rounded-full hover:bg-purple-50"

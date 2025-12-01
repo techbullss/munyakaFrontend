@@ -67,7 +67,7 @@ export default function ViewSaleModal({ sale, onClose }: ViewSaleModalProps) {
       ]),
     });
 
-    const finalY = (doc as any).lastAutoTable.finalY;
+    const finalY = (doc as { lastAutoTable?: { finalY?: number } }).lastAutoTable?.finalY ?? 10;
 
     // Totals
     doc.setFontSize(11);
@@ -110,7 +110,7 @@ export default function ViewSaleModal({ sale, onClose }: ViewSaleModalProps) {
         console.error("Share canceled or failed:", err);
       }
     } else {
-      alert("Sharing not supported on this browser. Please download the PDF instead.");
+      window.showToast("Sharing not supported on this browser. Please download the PDF instead.", "error");
     }
   };
 

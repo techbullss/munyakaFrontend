@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { MagnifyingGlassIcon, PlusIcon, XMarkIcon, EyeIcon, PencilIcon, TrashIcon, CalendarIcon, UserIcon, CurrencyDollarIcon, CreditCardIcon, ChartBarIcon } from "@heroicons/react/24/outline";
 
-// ✅ Purchase Type
+//  Purchase Type
 type Purchase = {
   id: number;
   supplierName: string;
@@ -22,7 +22,7 @@ type Purchase = {
   }[];
 };
 
-// ✅ Product Type
+//  Product Type
 type Product = {
   id: number;
   name: string;
@@ -30,7 +30,7 @@ type Product = {
   stock: number;
 };
 
-// ✅ Supplier Type
+//  Supplier Type
 type Supplier = {
   id: number;
   name: string;
@@ -68,7 +68,7 @@ export default function Purchases() {
   const [selectedProducts, setSelectedProducts] = useState<{product: Product, quantity: number}[]>([]);
   const [newAmountPaid, setNewAmountPaid] = useState(0);
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
-  const [products, setProducts] = useState<Product[]>([]);
+  const [products] = useState<Product[]>([]);
   const [showProductDropdown, setShowProductDropdown] = useState(false);
   const [productSearch, setProductSearch] = useState("");
   const [newItemQuantity, setNewItemQuantity] = useState(1);
@@ -171,34 +171,6 @@ export default function Purchases() {
   };
 
   //  Save Edited Purchase
-  const handleSaveEdit = async () => {
-    if (!selectedPurchase) return;
-
-    if (editAmountPaid > selectedPurchase.totalAmount) {
-      alert("Paid amount cannot exceed total amount!");
-      return;
-    }
-
-    const updatedPurchase = {
-      ...selectedPurchase,
-      supplierName: editSupplier,
-      amountPaid: editAmountPaid,
-      status: editStatus,
-    };
-
-    try {
-      await fetch(`${API_BASE_URL}/${selectedPurchase.id}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(updatedPurchase),
-      });
-
-      setIsEditOpen(false);
-      fetchPurchases(); // refresh list
-    } catch (err) {
-      console.error("Error updating purchase:", err);
-    }
-  };
 
   //  Remove Product from New Purchase
   const handleRemoveProduct = (index: number) => {
@@ -237,22 +209,24 @@ export default function Purchases() {
 
   const handleSaveNewPurchase = async () => {
     if (!selectedSupplier) {
-      alert("Please select a supplier");
+      window.showToast("Please select a supplier", "error");
       return;
     }
 
     if (selectedProducts.length === 0) {
-      alert("Please add at least one product");
+      window.showToast("Please add at least one product", "error");
       return;
     }
 
     if (newAmountPaid > calculateTotalAmount()) {
-      alert("Paid amount cannot exceed total amount!");
+      window.showToast("Paid amount cannot exceed total amount!", "error");
       return;
     }
 
     const newPurchase = {
   supplierName: selectedSupplier?.name,
+  supplierPhone: selectedSupplier?.phone,
+  supplierEmail:selectedSupplier?.email,
   purchaseDate: newPurchaseDate,
   totalAmount: calculateTotalAmount(),
   amountPaid: newAmountPaid,
@@ -412,15 +386,15 @@ export default function Purchases() {
                       <div className="space-y-1">
                         <div className="flex items-center text-sm text-gray-600">
                           <CurrencyDollarIcon className="h-4 w-4 mr-1" />
-                          Total: <span className="font-semibold ml-1">${purchase.totalAmount.toFixed(2)}</span>
+                          Total: <span className="font-semibold ml-1">ksh{purchase.totalAmount.toFixed(2)}</span>
                         </div>
                         <div className="flex items-center text-sm text-gray-600">
                           <CreditCardIcon className="h-4 w-4 mr-1" />
-                          Paid: <span className="font-semibold ml-1">${purchase.amountPaid.toFixed(2)}</span>
+                          Paid: <span className="font-semibold ml-1">ksh{purchase.amountPaid.toFixed(2)}</span>
                         </div>
                         <div className="flex items-center text-sm text-gray-600">
                           <ChartBarIcon className="h-4 w-4 mr-1" />
-                          Balance: <span className="font-semibold ml-1">${purchase.balanceDue.toFixed(2)}</span>
+                          Balance: <span className="font-semibold ml-1">ksh{purchase.balanceDue.toFixed(2)}</span>
                         </div>
                       </div>
                     </td>
@@ -520,15 +494,15 @@ export default function Purchases() {
 
               <div className="grid grid-cols-3 gap-4">
                 <div className="text-center p-4 bg-blue-50 rounded-xl">
-                  <div className="text-2xl font-bold text-blue-600">${selectedPurchase.totalAmount.toFixed(2)}</div>
+                  <div className="text-2xl font-bold text-blue-600">Ksh{selectedPurchase.totalAmount.toFixed(2)}</div>
                   <div className="text-sm text-gray-600">Total Amount</div>
                 </div>
                 <div className="text-center p-4 bg-green-50 rounded-xl">
-                  <div className="text-2xl font-bold text-green-600">${selectedPurchase.amountPaid.toFixed(2)}</div>
+                  <div className="text-2xl font-bold text-green-600">Ksh{selectedPurchase.amountPaid.toFixed(2)}</div>
                   <div className="text-sm text-gray-600">Amount Paid</div>
                 </div>
                 <div className="text-center p-4 bg-orange-50 rounded-xl">
-                  <div className="text-2xl font-bold text-orange-600">${selectedPurchase.balanceDue.toFixed(2)}</div>
+                  <div className="text-2xl font-bold text-orange-600">Ksh{selectedPurchase.balanceDue.toFixed(2)}</div>
                   <div className="text-sm text-gray-600">Balance Due</div>
                 </div>
               </div>
@@ -540,7 +514,7 @@ export default function Purchases() {
                     <div key={index} className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
                       <span className="font-medium text-gray-900">{item.productName}</span>
                       <span className="text-gray-600">
-                        {item.quantity} × kes{(item.total / item.quantity).toFixed(2)} = <strong>${item.total.toFixed(2)}</strong>
+                        {item.quantity} × kes{(item.total / item.quantity).toFixed(2)} = <strong>Ksh{item.total.toFixed(2)}</strong>
                       </span>
                     </div>
                   ))}
@@ -1006,7 +980,7 @@ export default function Purchases() {
                             </div>
                             
                             <div className="col-span-2 text-right font-semibold text-green-600">
-                              ${(item.product.price * item.quantity).toFixed(2)}
+                              Ksh{(item.product.price * item.quantity).toFixed(2)}
                             </div>
                             
                             <div className="col-span-1 text-center">
@@ -1026,12 +1000,12 @@ export default function Purchases() {
                     <div className="mt-4 bg-gradient-to-r from-gray-50 to-blue-50 rounded-lg p-6 border border-gray-200">
                       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                         <div className="text-center">
-                          <div className="text-2xl font-bold text-blue-600">${calculateTotalAmount().toFixed(2)}</div>
+                          <div className="text-2xl font-bold text-blue-600">Ksh{calculateTotalAmount().toFixed(2)}</div>
                           <div className="text-sm text-gray-600">Total Amount</div>
                         </div>
                         
                         <div className="text-center">
-                          <div className="text-2xl font-bold text-green-600">${newAmountPaid.toFixed(2)}</div>
+                          <div className="text-2xl font-bold text-green-600">Ksh{newAmountPaid.toFixed(2)}</div>
                           <div className="text-sm text-gray-600">Amount Paid</div>
                         </div>
                         
@@ -1039,7 +1013,7 @@ export default function Purchases() {
                           <div className={`text-2xl font-bold ${
                             calculateBalanceDue() > 0 ? 'text-orange-600' : 'text-green-600'
                           }`}>
-                            ${calculateBalanceDue().toFixed(2)}
+                            Ksh{calculateBalanceDue().toFixed(2)}
                           </div>
                           <div className="text-sm text-gray-600">Balance Due</div>
                         </div>
@@ -1052,11 +1026,11 @@ export default function Purchases() {
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
                   <div>
                     <label className="block text-sm font-semibold text-gray-700 mb-2">
-                      Amount Paid ($)
+                      Amount Paid (ksh)
                     </label>
                     <div className="relative">
                       <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                        <span className="text-gray-500">$</span>
+                        <span className="text-gray-500">Ksh</span>
                       </div>
                       <input
                         type="number"

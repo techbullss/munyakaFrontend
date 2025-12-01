@@ -7,6 +7,11 @@ interface ReturnSaleModalProps {
   onReturnSuccess: () => void;
 }
 
+interface SaleDTO {
+  items: SaleItem[];
+  id: number;
+}
+
 interface SaleItem {
   productId: string;
   productName: string;
@@ -25,37 +30,35 @@ export default function ReturnSaleModal({
   onReturnSuccess,
 }: ReturnSaleModalProps) {
   const [saleItems, setSaleItems] = useState<ReturnItem[]>([]);
+  const [sale, setSale] = useState<SaleDTO | null>(null);
   const [loading, setLoading] = useState(false);
 
- useEffect(() => {
-  if (!saleId) return;
+  useEffect(() => {
+    if (!saleId) return;
 
-  fetch(`http://localhost:8080/api/sales/${saleId}`)   // <-- ✅ Correct path
-    .then((res) => {
-      if (!res.ok) throw new Error("Failed to fetch sale");
-      return res.json();
-    })
-    .then((data) => {
-      // data is the single SaleSummaryDTO object
-      const withReturnFields = (data.items || []).map((item: SaleItem) => ({
-        ...item,
-        returnQty: 0,
-        reason: "",
-        condition: "GOOD",
-      }));
+    fetch(`http://localhost:8080/api/sales/${saleId}`)
+      .then((res) => {
+        if (!res.ok) throw new Error("Failed to fetch sale");
+        return res.json();
+      })
+      .then((data: SaleDTO) => {
+        const withReturnFields = (data.items || []).map((item) => ({
+          ...item,
+          returnQty: 0,
+          reason: "",
+          condition: "GOOD",
+        }));
 
-      setSaleItems(withReturnFields);
-      setSale(data); // if you also need sale header info
-    })
-    .catch((err) => console.error("Failed to load sale:", err));
-}, [saleId]);
-
-
+        setSaleItems(withReturnFields);
+        setSale(data);
+      })
+      .catch((err) => console.error("Failed to load sale:", err));
+  }, [saleId]);
 
   const handleItemChange = (
     index: number,
     field: keyof ReturnItem,
-    value: any
+    value: string | number
   ) => {
     setSaleItems((prev) =>
       prev.map((item, i) => (i === index ? { ...item, [field]: value } : item))
@@ -73,30 +76,33 @@ export default function ReturnSaleModal({
       }));
 
     if (itemsToReturn.length === 0) {
-      alert("Please specify at least one item to return");
+      window.showToast("No items to return", "error");
       return;
     }
 
     for (const i of saleItems) {
       if (i.returnQty > i.quantity) {
-        alert(`Return quantity for ${i.productName} cannot exceed ${i.quantity}`);
+        window.showToast(
+          `Return quantity for ${i.productName} cannot exceed ${i.quantity}`,
+          "error"
+        );
         return;
       }
     }
 
     setLoading(true);
     try {
-      const res = await fetch("http://localhost:8080/api/returns", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ saleId, items: itemsToReturn }),
-      });
+      const res = await fetch(`http://localhost:8080/api/sales/${saleId}/return`, {
+  method: "POST",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify({ items: itemsToReturn }),
+});
       if (!res.ok) throw new Error("Failed to process return");
 
       onReturnSuccess();
       onClose();
-    } catch (err: any) {
-      alert(err.message || "Error processing return");
+    } catch (err) {
+      window.showToast( "Error processing return", "error");
     } finally {
       setLoading(false);
     }
@@ -139,6 +145,7 @@ export default function ReturnSaleModal({
               onChange={(e) => handleItemChange(idx, "reason", e.target.value)}
               className="w-full border rounded p-2 mb-2"
               placeholder="Reason for return"
+              required
             />
 
             <select
@@ -174,7 +181,3 @@ export default function ReturnSaleModal({
     </div>
   );
 }
-function setSale(data: any) {
-  throw new Error("Function not implemented.");
-}
-

@@ -5,13 +5,7 @@ import {
   ChartBarIcon,
   ShoppingCartIcon,
   CubeIcon,
-  TruckIcon,
-  CurrencyDollarIcon,
-  UsersIcon,
-  UserGroupIcon,
-  DocumentChartBarIcon,
-  CogIcon,
-  HomeIcon,
+
   ArrowTrendingUpIcon,
   ExclamationTriangleIcon,
   CheckCircleIcon,
@@ -57,7 +51,7 @@ type DashboardDTO = {
   salesSummary: SalesSummary;
   recentActivities: RecentActivity[];
   topProducts: TopProduct[];
-  quickStats: Record<string, any>;
+  quickStats: Record<string, number>;
 };
 
 export default function Dashboard() {

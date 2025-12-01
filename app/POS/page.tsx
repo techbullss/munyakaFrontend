@@ -2,7 +2,24 @@
 import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { ArrowLeft, LogOutIcon } from "lucide-react";
+
 // API types and service
+interface VariantDetails {
+  Size?: string;
+  Gauge?: string;
+}
+interface Item {
+   variant?: VariantDetails;
+  variants?: VariantDetails;
+  productName?: string;
+  name?: string;
+  itemName?: string;
+  quantity?: number;
+  unitPrice?: number;
+  price?: number;
+  lineTotal?: number;
+  total?: number;
+}
 interface InventoryItem {
   id: number;
   itemName: string;
@@ -20,18 +37,27 @@ interface InventoryItem {
 }
 
 interface CartItem {
-  variant: any;
+  variant: { Size?: string; Gauge?: string; [key: string]: string | undefined };
   discountAmount: number;
   id: number;
   name: string;
   price: number;
   quantity: number;
   discount: number;
+  soldAs: string;
   total: number;
   stock: number;
   buyingPrice: number;
   sellingPrice: number;
   variants: { [key: string]: string };
+}
+
+interface PaginatedResponse {
+  content: InventoryItem[];
+  totalElements: number;
+  totalPages: number;
+  number: number;
+  size: number;
 }
 
 const API_BASE_URL = "http://localhost:8080/api";
@@ -52,7 +78,7 @@ const posApi = {
     if (!response.ok) throw new Error("Failed to search items by category");
     return response.json();
   },
-  saveSale: async (saleData: any) => {
+  saveSale: async (saleData: unknown) => {
     const response = await fetch(`${API_BASE_URL}/sales`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -61,9 +87,19 @@ const posApi = {
     if (!response.ok) throw new Error("Failed to save sale");
     return response.json();
   },
-  // Get all items
-  getItems: async (): Promise<InventoryItem[]> => {
-    const response = await fetch(`${API_BASE_URL}/items`);
+  // Get all items with pagination
+  getItems: async (params?: { page?: number; size?: number }): Promise<PaginatedResponse> => {
+    const queryParams = new URLSearchParams();
+    
+    if (params?.page !== undefined) {
+      queryParams.append('page', params.page.toString());
+    }
+    if (params?.size !== undefined) {
+      queryParams.append('size', params.size.toString());
+    }
+    
+    const url = `${API_BASE_URL}/items${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
+    const response = await fetch(url);
     if (!response.ok) throw new Error("Failed to fetch items");
     return response.json();
   },
@@ -96,7 +132,13 @@ export default function POSComponent() {
   const [amountPaid, setAmountPaid] = useState(0);
   const [activeCat, setActiveCat] = useState(0);
   const [cartNote, setCartNote] = useState("");
-  const [lastSale, setLastSale] = useState<any>(null); // for reprint
+  const [lastSale, setLastSale] = useState<Sale | null>(null); // for reprint
+
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(12);
+  const [totalItems, setTotalItems] = useState(0);
+  const [totalPages, setTotalPages] = useState(0);
 
   const searchTimeoutRef = useRef<NodeJS.Timeout | undefined>(undefined);
 
@@ -110,28 +152,56 @@ export default function POSComponent() {
     "Welding Materials",
   ];
 
-  // Load initial products
   useEffect(() => {
     loadInitialProducts();
   }, []);
+
+  const loadInitialProducts = async () => {
+    try {
+      const response = await posApi.getItems({
+        page: currentPage - 1,
+        size: itemsPerPage
+      });
+      setProducts(response.content);
+      setTotalItems(response.totalElements);
+      setTotalPages(response.totalPages);
+    } catch (error) {
+      console.error("Error loading products:", error);
+    }
+  };
+
+  // Load products when page changes
+  useEffect(() => {
+    if (searchTerm.trim() === "" && activeCat === 0) {
+      loadProducts();
+    }
+  }, [currentPage, itemsPerPage]);
+
+  const loadProducts = async () => {
+    try {
+      const response = await posApi.getItems({
+        page: currentPage - 1,
+        size: itemsPerPage
+      });
+      setProducts(response.content);
+      setTotalItems(response.totalElements);
+      setTotalPages(response.totalPages);
+    } catch (error) {
+      console.error("Error loading products:", error);
+    }
+  };
+
 const validatePhoneNumber = (phone: string) => {
   const regex = /^(07|01)\d{8}$/; // starts with 07 or 01, then 8 digits
   return regex.test(phone);
 };
-  const loadInitialProducts = async () => {
-    try {
-      const items = await posApi.getItems();
-      setProducts(items);
-    } catch (error) {
-      console.error("Error loading products:", error);
-      alert("Failed to load products");
-    }
-  };
 
   // Auto-search
   useEffect(() => {
     if (searchTerm.trim() === "") {
-      loadInitialProducts();
+      if (activeCat === 0) {
+        loadProducts();
+      }
       return;
     }
 
@@ -142,9 +212,11 @@ const validatePhoneNumber = (phone: string) => {
       try {
         const results = await posApi.searchItems(searchTerm);
         setProducts(results);
+        // Reset pagination for search results
+        setCurrentPage(1);
+        setTotalPages(0);
       } catch (error) {
-        console.error("Error searching products:", error);
-        alert("Failed to search products");
+        window.showToast("Failed to search products", "error");
       } finally {
         setIsSearching(false);
       }
@@ -174,7 +246,7 @@ const validatePhoneNumber = (phone: string) => {
           )
         );
       } else {
-        alert(`Only ${product.stockQuantity} items available in stock`);
+        window.showToast(`Only ${product.stockQuantity} items available in stock`, "error");
       }
     } else {
       if (product.stockQuantity > 0) {
@@ -186,6 +258,7 @@ const validatePhoneNumber = (phone: string) => {
             price: product.sellingPrice,
             quantity: 1,
             discount: 0,
+            soldAs: product.sellingUnit,
             total: product.sellingPrice,
             stock: product.stockQuantity,
             discountAmount: 0,
@@ -196,59 +269,72 @@ const validatePhoneNumber = (phone: string) => {
           },
         ]);
       } else {
-        alert("This product is out of stock");
+        window.showToast("This product is out of stock", "error");
       }
     }
   };
 
-  const updateQuantity = (id: number, newQuantity: number) => {
-    const item = cart.find((i) => i.id === id);
-    if (!item) return;
+ const updateQuantity = (id: number, newQuantity: number) => {
+  const item = cart.find((i) => i.id === id);
+  if (!item) return;
 
-    if (newQuantity > item.stock) {
-      alert(`Only ${item.stock} items available in stock`);
-      return;
-    }
-    if (newQuantity < 1) {
-      removeFromCart(id);
-      return;
-    }
+  // prevent exceeding stock
+  if (newQuantity > item.stock) {
+    window.showToast(`Only ${item.stock} items available in stock`, "error");
+    return;
+  }
 
-    setCart(
-      cart.map((i) =>
-        i.id === id
-          ? {
-              ...i,
-              quantity: newQuantity,
-              total:
-                i.price * newQuantity -
-                ((i.price * newQuantity) * i.discount) / 100,
-            }
-          : i
-      )
-    );
-  };
+  // if quantity is 0 or below, remove item
+  if (newQuantity <= 0) {
+    removeFromCart(id);
+    return;
+  }
+
+  // update item
+  setCart(
+    cart.map((i) =>
+      i.id === id
+        ? {
+            ...i,
+            quantity: parseFloat(newQuantity.toFixed(2)), // keep decimals neat
+            total:
+              parseFloat(
+                (i.price * newQuantity -
+                  ((i.price * newQuantity) * i.discount) / 100).toFixed(2)
+              ),
+          }
+        : i
+    )
+  );
+};
+
 
   const updateDiscount = (id: number, discountAmount: number) => {
-    setCart(
-      cart.map((item) => {
-        if (item.id === id) {
-          // cap discount to profit margin
-          const maxDiscount = item.sellingPrice - item.buyingPrice;
-          const appliedDiscount = Math.min(discountAmount, maxDiscount);
-          const discountedTotal =
-            (item.sellingPrice - appliedDiscount) * item.quantity;
+  setCart(
+    cart.map((item) => {
+      if (item.id === id) {
+        // Maximum discount = 5% of selling price per unit
+        const maxAllowedDiscount = item.sellingPrice * 0.05;
 
-          return {
-            ...item,
-            discountAmount: appliedDiscount,
-            total: discountedTotal,
-          };
+        if (discountAmount > maxAllowedDiscount * item.quantity) {
+          window.showToast(`Discount cannot exceed 5% of the selling price (KES ${maxAllowedDiscount.toFixed(2)} per item)`, "error");
+          discountAmount = maxAllowedDiscount * item.quantity;
         }
-        return item;
-      })
-    );
-  };
+
+        const discountedTotal =
+          (item.sellingPrice * item.quantity) - discountAmount;
+
+        return {
+          ...item,
+          discountAmount,
+          total: discountedTotal,
+        };
+      }
+      return item;
+    })
+  );
+};
+
 
   const removeFromCart = (id: number) => {
     setCart(cart.filter((item) => item.id !== id));
@@ -263,34 +349,54 @@ const validatePhoneNumber = (phone: string) => {
 
   const handleCategoryClick = async (index: number, category: string) => {
     setActiveCat(index);
+    setCurrentPage(1); // Reset to first page when changing category
+    
     if (category === "All") {
-      loadInitialProducts();
+      loadProducts();
       return;
     }
     try {
       const data = await posApi.searchItemsByCategory(category);
       setProducts(data);
+      setTotalPages(0); // No pagination for category searches
     } catch (err) {
       console.error(err);
     }
   };
 
+  interface Sale {
+      customerName?: string;
+      saleItems?: string[];
+      saleDate?: string;
+      createdAt?: string;
+      timestamp?: string;
+      items?: Item[];
+      totalAmount?: number;
+      total?: number;
+      grandTotal?: number;
+      paidAmount?: number;
+      amountPaid?: number;
+      change?: number;
+      changeAmount?: number;
+      note?: string;
+  }
+
   // Robust helpers for printing (handles different backend field names)
-  const getSaleValues = (sale: any) => {
+  const getSaleValues = (sale: Sale) => {
     const saleDate =
       sale?.saleDate || sale?.createdAt || sale?.timestamp || new Date().toISOString();
-    const items = sale?.items || sale?.saleItems || [];
+    const items = (sale)?.items || (sale)?.saleItems || [];
     const total =
-      sale?.totalAmount ?? sale?.total ?? sale?.grandTotal ?? totalAmount;
+      (sale)?.totalAmount ?? (sale )?.total ?? (sale )?.grandTotal ?? totalAmount;
     const paid =
-      sale?.paidAmount ?? sale?.amountPaid ?? (total + (sale?.change ?? sale?.changeAmount ?? 0));
-    const change = sale?.change ?? sale?.changeAmount ?? (paid - total);
-    const note = sale?.note ?? cartNote ?? "";
+      (sale)?.paidAmount ?? (sale)?.amountPaid ?? (total + ((sale)?.change ?? (sale)?.changeAmount ?? 0));
+    const change = (sale)?.change ?? (sale)?.changeAmount ?? (paid - total);
+    const note = (sale)?.note ?? cartNote ?? "";
 
     return { saleDate, items, total, paid, change, note };
   };
 
-  const printReceipt = (sale: any) => {
+  const printReceipt = (sale: Sale) => {
     const receiptWindow = window.open("", "PRINT", "height=600,width=400");
     if (!receiptWindow) return;
 
@@ -304,7 +410,7 @@ const validatePhoneNumber = (phone: string) => {
     // Header (kept your original style)
     receiptWindow.document.write(
       `<h1 style="text-align:center;">Munyaka HardWare</h1>
-       <h3 style="text-align:center;">Bei niya Hussler</h3>
+       <h3 style="text-align:center;"></h3>
        <p style="text-align:center;">phone: 07xxxxxxx</p>`
     );
 
@@ -320,16 +426,19 @@ const validatePhoneNumber = (phone: string) => {
     receiptWindow.document.write(
       "<tr><th>Item</th><th>Qty</th><th>Price</th><th>Total</th></tr>"
     );
-items.forEach((item: any) => {
+items.forEach((item: Item) => {
   const name = item.productName || item.name || item.itemName || "-";
   const qty = item.quantity ?? 1;
   const unit = item.unitPrice ?? item.price ?? 0;
   const line = item.lineTotal ?? item.total ?? unit * qty;
 
   // Support both "variant" and "variants"
-  const v = item.variant || item.variants;
-  const variant =
-    v && (v.Size || v.Gauge) ? ` (${v.Size || ""}${v.Size && v.Gauge ? "/" : ""}${v.Gauge || ""})` : "";
+  const v = item.variant || item.variants ;
+
+const variant =
+  v && (v.Size || v.Gauge)
+    ? ` (${v.Size ?? ""}${v.Size && v.Gauge ? "/" : ""}${v.Gauge ?? ""})`
+    : "";
 
   receiptWindow.document.write(
     `<tr>
@@ -361,7 +470,22 @@ items.forEach((item: any) => {
     receiptWindow.print();
   };
 
-  const printInvoice = (sale: any) => {
+  const printInvoice = (sale: {
+    customerName?: string;
+    customerPhone?: string;
+    saleDate?: string;
+    createdAt?: string;
+    timestamp?: string;
+    items?: Item[];
+    totalAmount?: number;
+    total?: number;
+    grandTotal?: number;
+    paidAmount?: number;
+    amountPaid?: number;
+    change?: number;
+    changeAmount?: number;
+    note?: string;
+  }) => {
     const win = window.open("", "PRINT", "height=600,width=400");
     if (!win) return;
 
@@ -372,7 +496,7 @@ items.forEach((item: any) => {
     // Header (kept consistent)
     win.document.write(
       `<h1 style="text-align:center;">Munyaka HardWare</h1>
-       <h3 style="text-align:center;">Bei niya Hussler</h3>
+       
        <p style="text-align:center;">phone: 07xxxxxxx</p>`
     );
     win.document.write("<h2 style='text-align:center;'>INVOICE</h2>");
@@ -385,7 +509,16 @@ items.forEach((item: any) => {
     win.document.write('<table border="1" cellspacing="0" cellpadding="4" width="100%">');
     win.document.write("<tr><th>Item</th><th>Qty</th><th>Price</th><th>Total</th></tr>");
 
-    items.forEach((item: any) => {
+    items.forEach((item: { 
+      productName?: string;
+      name?: string;
+      itemName?: string;
+      quantity?: number;
+      unitPrice?: number;
+      price?: number;
+      lineTotal?: number;
+      total?: number;
+    }) => {
       const name = item.productName || item.name || item.itemName || "-";
       const qty = item.quantity ?? 1;
       const unit = item.unitPrice ?? item.price ?? 0;
@@ -417,29 +550,19 @@ items.forEach((item: any) => {
 const processPayment = async () => {
   const total = calculateTotal();
   const paid = amountPaid || 0;
-  const change = paid - total; // negative => balance due
-
+  const change = paid - total; 
+  
   // ===== VALIDATIONS =====
-  if (paymentMethod === "mpesa" && !mpesaNumber.trim()) {
-    alert("Please enter M-Pesa phone number");
-    return;
-  }
-
-  if (paymentMethod === "bank" && !bankReference.trim()) {
-    alert("Please enter bank reference number");
-    return;
-  }
-
+  
   // Require customer info only if underpaid (change < 0)
   if (change < 0) {
+    
     if (!customerName.trim()) {
-      alert("Customer name is required if balance is due");
+      window.showToast("Customer name is required if balance is due", "error");
       return;
     }
     if (!validatePhoneNumber(customerPhone)) {
-      alert(
-        "Please enter a valid customer phone number (must start with 07 or 01 and be 10 digits)"
-      );
+      window.showToast("Valid customer phone number is required if balance is due", "error");
       return;
     }
   }
@@ -448,6 +571,10 @@ const processPayment = async () => {
   setIsProcessing(true);
 
   try {
+    let balanceDue = 0;
+    if (change < 0) {
+       balanceDue = -change;
+    }
     for (const item of cart) {
       const newStock = item.stock - item.quantity;
       await posApi.updateItemStock(item.id, newStock);
@@ -460,7 +587,7 @@ const processPayment = async () => {
       paymentMethod,
       totalAmount: total,
       amountPaid: paid,
-      changeAmount: change,
+      changeAmount: balanceDue,
       note: cartNote,
       items: cart.map((item) => ({
         productId: item.id,
@@ -482,11 +609,7 @@ const processPayment = async () => {
       printReceipt(savedSale);
     }
 
-    alert(
-      `Payment processed successfully!${
-        change > 0 ? ` Change: KES ${change.toFixed(2)}` : ""
-      }`
-    );
+    window.showToast(`Payment processed successfully!${change > 0 ? ` Change: KES ${change.toFixed(2)}` : ""}`, "success");
 
     // Reset UI (keep lastSale so reprint works)
     setCart([]);
@@ -498,7 +621,8 @@ const processPayment = async () => {
     setCartNote("");
   } catch (error) {
     console.error("Error processing payment:", error);
-    alert("Failed to process payment");
+
+    window.showToast(`Payment failed!${change > 0 ? ` Change: KES ${change.toFixed(2)}` : ""}`, "error");
   } finally {
     setIsProcessing(false);
   }
@@ -579,49 +703,168 @@ const processPayment = async () => {
                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
               </div>
             ) : (
-              <div className="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-4 gap-4 max-h-[28rem] overflow-y-auto pr-2">
-                {products.map((product) => (
-                  <div
-                    key={product.id}
-                    className="border rounded-xl p-3 cursor-pointer hover:shadow-md transition bg-gray-50"
-                    onClick={() => addToCart(product)}
-                  >
-                    <div className="h-20 bg-white rounded-lg mb-2 flex items-center justify-center overflow-hidden">
-                      {product.imageUrls.length > 0 ? (
-                        <img
-                          src={product.imageUrls[0]}
-                          alt={product.itemName}
-                          className="h-full w-full object-cover"
-                        />
-                      ) : (
-                        <span className="text-gray-400 text-xs">No image</span>
-                      )}
-                    </div>
-                    <p className="text-sm font-semibold truncate">
-                      {product.itemName} {product.variants?.Size}/
-                      {product.variants?.Gauge}
-                    </p>
-                    <p className="text-xs text-gray-600">
-                      KES {product.sellingPrice.toFixed(2)}
-                    </p>
-                    <p className="text-xs text-gray-400">
-                      Stock: {product.stockQuantity}
-                    </p>
-                  </div>
-                ))}
+              <>
+                <div className="grid grid-cols-1 md:grid-cols-3 xl:grid-cols-3 gap-3 max-h-[28rem] overflow-y-auto pr-2">
+                  {products.map((product) => (
+                    <div
+                      key={product.id}
+                      onClick={() => addToCart(product)}
+                      className="flex justify-between items-center bg-gradient-to-br from-white to-gray-50 border border-gray-200 rounded-xl px-4 py-3 shadow-sm hover:shadow-md hover:scale-[1.01] transition-all duration-200 cursor-pointer"
+                    >
+                      {/* Left Section */}
+                      <div className="flex flex-col space-y-0.5">
+                        <p className="text-[0.95rem] font-semibold text-gray-900">
+                          {product.itemName} <span className="text-red-400">sold in {product.sellingUnit}</span> 
+                        </p>
+                        <p className="text-xs text-gray-500 italic">
+                          {product.category || 'Uncategorized'}
+                        </p>
 
-                {products.length === 0 && (
-                  <div className="col-span-full text-center py-8 text-gray-500">
-                    No products found
+                        {(product.variants?.Size || product.variants?.Gauge) && (
+                          <p className="text-xs text-gray-600">
+                            <span className="font-medium text-gray-700">Variant:</span>{' '}
+                            {product.variants?.Size && `Size ${product.variants.Size}`}{' '}
+                            {product.variants?.Gauge && `| Gauge ${product.variants.Gauge}`}
+                          </p>
+                        )}
+                      </div>
+
+                      {/* Right Section */}
+                      <div className="text-right">
+                        <p className="text-sm font-semibold text-blue-700">
+                          KES {product.sellingPrice.toFixed(2)}
+                        </p>
+                        
+                        <p
+                          className={`text-xs font-semibold ${
+                            product.stockQuantity <= 5
+                              ? 'text-red-500'
+                              : product.stockQuantity <= 15
+                              ? 'text-yellow-500'
+                              : 'text-green-600'
+                          }`}
+                        >
+                          {product.stockQuantity <= 5
+                            ? ` Reorder  ${product.stockQuantity}`
+                            : `Stock: ${product.stockQuantity}`}
+                        </p>
+                      </div>
+                    </div>
+                  ))}
+
+                  {products.length === 0 && (
+                    <div className="col-span-full text-center py-8 text-gray-500 text-sm">
+                      No products found
+                    </div>
+                  )}
+                </div>
+
+                {/* Pagination Controls - Only show for "All" category */}
+                {totalPages > 1 && activeCat === 0 && (
+                  <div className="flex items-center justify-between border-t border-gray-200 bg-white px-4 py-3 mt-4">
+                    <div className="flex flex-1 justify-between sm:hidden">
+                      <button
+                        onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                        disabled={currentPage === 1}
+                        className={`relative inline-flex items-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 ${
+                          currentPage === 1 ? 'opacity-50 cursor-not-allowed' : 'hover:bg-gray-50'
+                        }`}
+                      >
+                        Previous
+                      </button>
+                      <div className="flex items-center">
+                        <span className="text-sm text-gray-700">
+                          Page <span className="font-medium">{currentPage}</span> of <span className="font-medium">{totalPages}</span>
+                        </span>
+                      </div>
+                      <button
+                        onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                        disabled={currentPage === totalPages}
+                        className={`relative ml-3 inline-flex items-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 ${
+                          currentPage === totalPages ? 'opacity-50 cursor-not-allowed' : 'hover:bg-gray-50'
+                        }`}
+                      >
+                        Next
+                      </button>
+                    </div>
+                    
+                    <div className="hidden sm:flex sm:flex-1 sm:items-center sm:justify-between">
+                      <div>
+                        <p className="text-sm text-gray-700">
+                          Showing <span className="font-medium">{(currentPage - 1) * itemsPerPage + 1}</span> to{' '}
+                          <span className="font-medium">
+                            {Math.min(currentPage * itemsPerPage, totalItems)}
+                          </span> of{' '}
+                          <span className="font-medium">{totalItems}</span> results
+                        </p>
+                      </div>
+                      <div>
+                        <nav className="isolate inline-flex -space-x-px rounded-md shadow-sm" aria-label="Pagination">
+                          <button
+                            onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                            disabled={currentPage === 1}
+                            className={`relative inline-flex items-center rounded-l-md px-2 py-2 text-gray-400 ring-1 ring-inset ring-gray-300 hover:bg-gray-50 focus:z-20 focus:outline-offset-0 ${
+                              currentPage === 1 ? 'opacity-50 cursor-not-allowed' : ''
+                            }`}
+                          >
+                            <span className="sr-only">Previous</span>
+                            <svg className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                              <path fillRule="evenodd" d="M12.79 5.23a.75.75 0 01-.02 1.06L8.832 10l3.938 3.71a.75.75 0 11-1.04 1.08l-4.5-4.25a.75.75 0 010-1.08l4.5-4.25a.75.75 0 011.06.02z" clipRule="evenodd" />
+                            </svg>
+                          </button>
+
+                          {/* Page numbers - show limited pages */}
+                          {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                            let pageNum;
+                            if (totalPages <= 5) {
+                              pageNum = i + 1;
+                            } else if (currentPage <= 3) {
+                              pageNum = i + 1;
+                            } else if (currentPage >= totalPages - 2) {
+                              pageNum = totalPages - 4 + i;
+                            } else {
+                              pageNum = currentPage - 2 + i;
+                            }
+
+                            return (
+                              <button
+                                key={pageNum}
+                                onClick={() => setCurrentPage(pageNum)}
+                                className={`relative inline-flex items-center px-4 py-2 text-sm font-semibold ${
+                                  currentPage === pageNum
+                                    ? 'z-10 bg-indigo-600 text-white focus:z-20 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600'
+                                    : 'text-gray-900 ring-1 ring-inset ring-gray-300 hover:bg-gray-50 focus:z-20 focus:outline-offset-0'
+                                }`}
+                              >
+                                {pageNum}
+                              </button>
+                            );
+                          })}
+
+                          <button
+                            onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                            disabled={currentPage === totalPages}
+                            className={`relative inline-flex items-center rounded-r-md px-2 py-2 text-gray-400 ring-1 ring-inset ring-gray-300 hover:bg-gray-50 focus:z-20 focus:outline-offset-0 ${
+                              currentPage === totalPages ? 'opacity-50 cursor-not-allowed' : ''
+                            }`}
+                          >
+                            <span className="sr-only">Next</span>
+                            <svg className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                              <path fillRule="evenodd" d="M7.21 14.77a.75.75 0 01.02-1.06L11.168 10 7.23 6.29a.75.75 0 111.04-1.08l4.5 4.25a.75.75 0 010 1.08l-4.5 4.25a.75.75 0 01-1.06-.02z" clipRule="evenodd" />
+                            </svg>
+                          </button>
+                        </nav>
+                      </div>
+                    </div>
                   </div>
                 )}
-              </div>
+              </>
             )}
           </div>
         </div>
 
         {/* Right side: Cart */}
-        <div className="bg-gray-50 rounded-2xl p-4 flex flex-col">
+        <div className="bg-gray-50 rounded-2xl  flex flex-col">
           <h2 className="text-lg font-semibold text-gray-900 mb-4">Cart</h2>
 
           {/* Cart items */}
@@ -652,19 +895,20 @@ const processPayment = async () => {
                     <tr key={item.id} className="hover:bg-gray-50">
                       <td className="px-2 py-1">{item.name}{item.variant?.Size}/{item.variant?.Gauge}</td>
                       <td className="px-2 py-1">
-                        <input
-                          type="number"
-                          min="1"
-                          max={item.stock}
-                          value={item.quantity}
-                          onChange={(e) =>
-                            updateQuantity(
-                              item.id,
-                              parseInt(e.target.value) || 1
-                            )
-                          }
-                          className="w-14 px-1 py-0.5 border rounded text-xs"
-                        />
+                                               <div className="flex "> 
+                                                <input
+                                                          type="number"
+                                                          step="0.25"
+                                                          min="0.25"
+                                                          value={item.quantity}
+                                                          onChange={(e) => updateQuantity(item.id, parseFloat(e.target.value))}
+                                                          className="w-20 px-2 py-1 border rounded text-sm text-center focus:outline-none focus:ring focus:ring-blue-300"
+                                                        />
+                                                        <p>{item.soldAs}</p>
+
+                        </div>
+
+
                       </td>
                       <td className="px-2 py-1">
                         <input
@@ -679,7 +923,9 @@ const processPayment = async () => {
                             )
                           }
                           className="w-16 px-1 py-0.5 border rounded text-xs"
+
                         />
+                        
                       </td>
                       <td className="px-2 py-1 font-medium text-gray-700">
                         KES{" "}
@@ -790,30 +1036,12 @@ const processPayment = async () => {
                 )}
                 {changeAmount < 0 && (
                   <p className="text-sm text-red-600 mt-1">
-                    Balance: KES {(-changeAmount).toFixed(2)}
+                    Balance: KES {"-" + (changeAmount).toFixed(2)}
                   </p>
                 )}
               </div>
 
-              {/* Extra fields */}
-              {paymentMethod === "mpesa" && (
-                <input
-                  type="tel"
-                  placeholder="M-Pesa Phone Number"
-                  value={mpesaNumber}
-                  onChange={(e) => setMpesaNumber(e.target.value)}
-                  className="w-full px-3 py-2 border rounded-md text-sm"
-                />
-              )}
-              {paymentMethod === "bank" && (
-                <input
-                  type="text"
-                  placeholder="Bank Reference Number"
-                  value={bankReference}
-                  onChange={(e) => setBankReference(e.target.value)}
-                  className="w-full px-3 py-2 border rounded-md text-sm"
-                />
-              )}
+           
 
               {/* Process Payment */}
               <button

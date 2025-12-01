@@ -113,7 +113,7 @@ function RentalItemModal({
       onClose();
     } catch (error) {
       console.error('Error saving rental item:', error);
-      alert(`Failed to ${isEditMode ? 'update' : 'add'} rental item. Please try again.`);
+      window.showToast(`Failed to ${isEditMode ? 'update' : 'add'} rental item. Please try again.`, "error");
     }
   };
 
@@ -293,7 +293,8 @@ export default function RentalItemsPage() {
       setRentalItems(items);
     } catch (error) {
       console.error('Error loading rental items:', error);
-      alert('Failed to load rental items');
+      window.showToast('Failed to load rental items', 'error');
+      
     } finally {
       setLoading(false);
     }
@@ -308,11 +309,11 @@ export default function RentalItemsPage() {
     if (confirm('Are you sure you want to delete this rental item?')) {
       try {
         await rentalApi.deleteRentalItem(id);
-        alert('Rental item deleted successfully!');
+        window.showToast('Rental item deleted successfully!', 'success');
         loadRentalItems();
       } catch (error) {
         console.error('Error deleting rental item:', error);
-        alert('Failed to delete rental item');
+        window.showToast('Failed to delete rental item', 'error');
       }
     }
   };

@@ -1,19 +1,42 @@
 // app/dashboard/debtors/page.tsx
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { 
   MagnifyingGlassIcon, 
-  PlusIcon, 
-  EnvelopeIcon, 
+  
   PhoneIcon, 
   CurrencyDollarIcon,
   ClockIcon,
   ExclamationTriangleIcon,
-  DocumentTextIcon
+ 
 } from '@heroicons/react/24/outline';
-import { Debtor, PaymentStatus } from '@/app/business/types';
-import { debtorService } from '@/app/services/debtorService';
+
+// Import debtorService (adjust the path as needed)
+import { debtorService } from '../services/debtorService';
+
+// Type definitions
+type PaymentStatus = 'OVERDUE' | 'PENDING' | 'PAID';
+
+type Sale = {
+  id: number;
+  saleDate: string;
+  totalAmount: number;
+  paidAmount: number;
+  balanceDue: number;
+  paymentStatus: PaymentStatus;
+};
+
+type Debtor = {
+  id: number;
+  customerName: string;
+  customerPhone: string;
+  totalDebt: number;
+  lastSaleDate: string;
+  paymentStatus: PaymentStatus;
+  sales: Sale[];
+};
+
 
 export default function Debtors() {
   const [debtors, setDebtors] = useState<Debtor[]>([]);
@@ -43,15 +66,21 @@ export default function Debtors() {
     }
   };
 
-  const filteredDebtors = debtors.filter((debtor: Debtor) => 
+  const filteredDebtors = useMemo(() => {
+  return debtors.filter((debtor: Debtor) => 
     debtor.customerName.toLowerCase().includes(searchTerm.toLowerCase()) ||
     debtor.customerPhone.includes(searchTerm)
   );
+}, [debtors, searchTerm]);
 
-  const totalReceivable = debtors.reduce((sum: number, debtor: Debtor) => sum + debtor.totalDebt, 0);
-  const overdueAmount = debtors
+  const totalReceivable = useMemo(() => 
+  debtors.reduce((sum: number, debtor: Debtor) => sum + debtor.totalDebt, 0),
+  [debtors]);
+  const overdueAmount = useMemo(() => 
+  debtors
     .filter((d: Debtor) => d.paymentStatus === 'OVERDUE')
-    .reduce((sum: number, debtor: Debtor) => sum + debtor.totalDebt, 0);
+    .reduce((sum: number, debtor: Debtor) => sum + debtor.totalDebt, 0),
+  [debtors]);
 
   const handleRecordPayment = (debtor: Debtor, saleId?: number): void => {
     setSelectedDebtor(debtor);
@@ -378,6 +407,7 @@ export default function Debtors() {
                 className="px-4 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300"
               >
                 Close
+                
               </button>
             </div>
           </div>

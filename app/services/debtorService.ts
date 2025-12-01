@@ -20,7 +20,7 @@ export const debtorService = {
 
   // Record a payment for a sale
   async recordPayment(saleId: number, paymentAmount: number): Promise<Sale> {
-    const response = await fetch(`${API_BASE_URL}/sales/${saleId}/payment`, {
+    const response = await fetch(`http://localhost:8080/api/sales/payment/${saleId}`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

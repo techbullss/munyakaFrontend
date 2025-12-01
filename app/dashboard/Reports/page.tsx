@@ -20,11 +20,14 @@ interface DateRange {
   start: string;
   end: string;
 }
-
+interface ReportItem {
+  id?: string | number;
+  [key: string]: string | number | boolean | undefined; // optional if items can have dynamic properties
+}
 interface ReportTab {
   id: string;
   name: string;
-  icon: React.ComponentType<any>;
+  icon: React.ComponentType<React.SVGProps<SVGSVGElement>>;
   endpoint: string;
 }
 
@@ -285,7 +288,8 @@ const reportTabs: ReportTab[] = [
   { id: 'purchase', name: 'Purchase Report', icon: ShoppingCartIcon, endpoint: 'http://localhost:8080/api/purchases/filter' },
   { id: 'users', name: 'Users Report', icon: UsersIcon, endpoint: 'http://localhost:8080/api/users' },
   { id: 'creditors', name: 'Creditors Report', icon: UserGroupIcon, endpoint: 'http://localhost:8080/api/creditors' },
-{ id: 'profit', name: 'Profit & Loss', icon: ChartBarIcon, endpoint: 'http://localhost:8080/api/sales' },  { id: 'inventory', name: 'Inventory Report', icon: CubeIcon, endpoint: 'http://localhost:8080/api/items' },
+{ id: 'profit', name: 'Profit & Loss', icon: ChartBarIcon, endpoint: 'http://localhost:8080/api/sales' }, 
+ { id: 'inventory', name: 'Inventory Report', icon: CubeIcon, endpoint: 'http://localhost:8080/api/items' },
   { id: 'debtors', name: 'Debtors Report', icon: UserGroupIcon, endpoint: 'http://localhost:8080/api/sales/debtors' },
 ];
 
@@ -296,7 +300,7 @@ export default function Reports() {
     end: new Date().toISOString().split('T')[0]
   });
   const [reportData, setReportData] = useState<ReportData>([]);
-  const [summary, setSummary] = useState<any>({});
+  const [summary, setSummary] = useState<Record<string, string | number | boolean | undefined>>({});
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string>('');
   const [pagination, setPagination] = useState({
@@ -455,11 +459,11 @@ const fetchReportData = async (reportType: string, dateRange: DateRange) => {
       const purchaseData = Array.isArray(result) ? result : result.content || result.data || [];
       setReportData(purchaseData);
       setSummary({
-        totalPurchases: purchaseData.reduce((sum: any, purchase: { totalAmount: any; }) => sum + purchase.totalAmount, 0),
-        totalPaid: purchaseData.reduce((sum: any, purchase: { amountPaid: any; }) => sum + purchase.amountPaid, 0),
-        totalBalance: purchaseData.reduce((sum: any, purchase: { balanceDue: any; }) => sum + purchase.balanceDue, 0),
+        totalPurchases: purchaseData.reduce((sum: number, purchase: { totalAmount: number; }) => sum + purchase.totalAmount, 0),
+        totalPaid: purchaseData.reduce((sum: number, purchase: { amountPaid: number; }) => sum + purchase.amountPaid, 0),
+        totalBalance: purchaseData.reduce((sum: number, purchase: { balanceDue: number; }) => sum + purchase.balanceDue, 0),
         totalItems: purchaseData.length,
-        creditors: purchaseData.filter((purchase: { creditor: any; }) => purchase.creditor).length
+        creditors: purchaseData.filter((purchase: { creditor: number; }) => purchase.creditor).length
       });
     } else if (reportType === 'profit') {
   // Calculate profit and loss manually from existing endpoints
@@ -867,7 +871,7 @@ const fetchReportData = async (reportType: string, dateRange: DateRange) => {
           autoTable.default(doc, {
             startY: startY,
             head: [['ID', 'Data']],
-            body: (reportData as any[]).map((item, index) => [
+            body: (reportData as unknown as ReportItem[]).map((item, index) => [
               item.id || (index + 1).toString(),
               JSON.stringify(item)
             ]),
@@ -1582,7 +1586,7 @@ case 'profit':
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {(reportData as any[]).map((item, index) => (
+              {(reportData as unknown as ReportItem[]).map((item, index) => (
                 <tr key={item.id || index}>
                   <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">{item.id || index + 1}</td>
                   <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">

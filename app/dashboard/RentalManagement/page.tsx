@@ -13,7 +13,7 @@ interface RentalPayment {
 }
 
 interface RentalTransaction {
-  balanceDue: any;
+  balanceDue?: number;
   id?: number;
   rentalItem: RentalItem;
   customerName: string;
@@ -114,7 +114,7 @@ function RentItemModal({
       setRentalItems(items.filter(item => item.availableQuantity > 0));
     } catch (error) {
       console.error('Error loading rental items:', error);
-      alert('Failed to load rental items');
+      window.showToast("Failed to load rental items","error");
     }
   };
 
@@ -145,12 +145,12 @@ function RentItemModal({
       };
 
       await rentalTransactionApi.createRentalTransaction(transaction);
-      alert('Rental transaction created successfully!');
+      window.showToast("Rental transaction created successfully!", "success");
       onSave();
       onClose();
     } catch (error) {
       console.error('Error creating rental transaction:', error);
-      alert('Failed to create rental transaction');
+      window.showToast("Failed to create rental transaction", "error");
     }
   };
 
@@ -369,7 +369,7 @@ export default function RentalManagement() {
       setRentalTransactions(transactions);
     } catch (error) {
       console.error('Error loading rental transactions:', error);
-      alert('Failed to load rental transactions');
+     window.showToast("Failed to load rental transactions","error")
     } finally {
       setLoading(false);
     }
@@ -379,11 +379,11 @@ export default function RentalManagement() {
     if (confirm('Are you sure you want to mark this item as returned?')) {
       try {
         await rentalTransactionApi.returnRentalItem(id);
-        alert('Item returned successfully!');
+        window.showToast("This product is out of stock", "error");
         loadRentalTransactions();
       } catch (error) {
         console.error('Error returning item:', error);
-        alert('Failed to return item');
+        window.showToast("Failed to return item", "error");
       }
     }
   };
@@ -592,12 +592,12 @@ export default function RentalManagement() {
         },
         body: JSON.stringify(formData),
       });
-      alert('Payment processed successfully!');
+      window.showToast('Payment processed successfully', 'success');
       onSave();
       onClose();
     } catch (error) {
       console.error('Error processing payment:', error);
-      alert('Failed to process payment');
+      window.showToast('Failed to process payment', 'error');
     }
   };
 
@@ -622,7 +622,7 @@ export default function RentalManagement() {
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
               required
             />
-            <p className="text-sm text-gray-500 mt-1">Balance due: KES {rental.balanceDue.toFixed(2)}</p>
+            <p className="text-sm text-gray-500 mt-1">Balance due: KES {rental.balanceDue?.toFixed(2)}</p>
           </div>
           
           <div>
@@ -753,12 +753,12 @@ function ReturnModal({
       }
 
       const returnedRental = await response.json();
-      alert('Item returned successfully!');
+      window.showToast('Item returned successfully!', 'success');
       onSave();
       onClose();
     } catch (error) {
       console.error('Error returning item:', error);
-      alert(`Failed to return item: ${error instanceof Error ? error.message : 'Unknown error occurred'}`);
+      window.showToast(`Failed to return item: ${error instanceof Error ? error.message : 'Unknown error occurred'}`, 'error');
     } finally {
       setLoading(false);
     }
