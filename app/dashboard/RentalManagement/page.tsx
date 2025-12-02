@@ -189,39 +189,81 @@ function RentItemModal({
             </select>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Customer Name*</label>
-              <input
-                type="text"
-                value={formData.customerName}
-                onChange={(e) => setFormData({ ...formData, customerName: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                required
-              />
-            </div>
-            
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Customer Phone*</label>
-              <input
-                type="tel"
-                value={formData.customerPhone}
-                onChange={(e) => setFormData({ ...formData, customerPhone: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                required
-              />
-            </div>
-          </div>
+<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+  <div>
+    <label className="block text-sm font-medium text-gray-700 mb-1">Customer Name*</label>
+    <input
+      type="text"
+      value={formData.customerName}
+      onChange={(e) => setFormData({ ...formData, customerName: e.target.value })}
+      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+      required
+    />
+  </div>
+  
+  <div>
+    <label className="block text-sm font-medium text-gray-700 mb-1">Customer Phone*</label>
+    <input
+      type="tel"
+      value={formData.customerPhone}
+      onChange={(e) => {
+        let value = e.target.value.replace(/\D/g, '');
+        
+        // Auto-add leading 0 if missing and user types first digit
+        if (value.length > 0 && !value.startsWith('0')) {
+          value = '0' + value;
+        }
+        
+        // Limit to 10 digits
+        if (value.length <= 10) {
+          setFormData({ ...formData, customerPhone: value });
+        }
+      }}
+      onBlur={() => {
+        // Add validation message on blur
+        if (formData.customerPhone && formData.customerPhone.length !== 10) {
+          // Optional: show error toast
+          window.showToast('Phone must be exactly 10 digits starting with 0', 'error');
+        }
+      }}
+      className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+        formData.customerPhone && formData.customerPhone.length !== 10 
+          ? 'border-yellow-400 bg-yellow-50' 
+          : 'border-gray-300'
+      }`}
+      required
+      placeholder="07XXXXXXXX"
+    />
+    <div className="flex justify-between mt-1">
+      <span className="text-xs text-gray-500">Format: 07XXXXXXXX</span>
+      <span className="text-xs text-gray-500">
+        {formData.customerPhone ? `${formData.customerPhone.length}/10` : '0/10'}
+      </span>
+    </div>
+  </div>
+</div>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">ID Number</label>
-            <input
-              type="text"
-              value={formData.customerIdNumber}
-              onChange={(e) => setFormData({ ...formData, customerIdNumber: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-          </div>
+<div>
+  <label className="block text-sm font-medium text-gray-700 mb-1">ID Number</label>
+  <input
+    type="text"
+    inputMode="numeric"
+    pattern="\d{7,9}"
+    value={formData.customerIdNumber}
+    onChange={(e) => {
+      const value = e.target.value.replace(/\D/g, '');
+      if (value.length <= 9) {
+        setFormData({ ...formData, customerIdNumber: value });
+      }
+    }}
+    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+    placeholder="7-9 digits only"
+  />
+  <div className="flex justify-between text-xs text-gray-500 mt-1">
+    <span>Must be 7-9 digits</span>
+    <span>{formData.customerIdNumber.length}/9</span>
+  </div>
+</div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
@@ -497,7 +539,7 @@ export default function RentalManagement() {
                     </td>
 
                      <td className="px-6 py-4 text-sm font-medium">
-    {transaction.status === 'ACTIVE' && (
+    {(['ACTIVE', 'COMPLETED_PENDING_PAYMENT'].includes(transaction.status)) && (
       <>
         <button
           onClick={() => handlePayment(transaction)}
@@ -769,112 +811,134 @@ function ReturnModal({
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-      <div className="bg-white rounded-lg shadow-xl max-w-md w-full">
-        <div className="flex justify-between items-center p-6 border-b">
+      <div className="bg-white rounded-lg shadow-xl w-full max-w-md max-h-[90vh] flex flex-col">
+        {/* Fixed Header */}
+        <div className="flex justify-between items-center p-6 border-b border-gray-200 flex-shrink-0">
           <h2 className="text-xl font-semibold text-gray-800">Return Item</h2>
           <button 
             onClick={onClose} 
-            className="text-gray-500 hover:text-gray-700"
+            className="text-gray-500 hover:text-gray-700 text-2xl w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100"
             disabled={loading}
+            aria-label="Close"
           >
             ✕
           </button>
         </div>
         
-        <form onSubmit={handleSubmit} className="p-6 space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Return Condition*</label>
-            <select
-              value={formData.returnCondition}
-              onChange={(e) => setFormData({ ...formData, returnCondition: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              required
-              disabled={loading}
-            >
-              {returnConditions.map(condition => (
-                <option key={condition.value} value={condition.value}>{condition.label}</option>
-              ))}
-            </select>
-          </div>
-          
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Damage Charges (KES)</label>
-            <input
-              type="number"
-              value={formData.damageCharges}
-              onChange={(e) => setFormData({ ...formData, damageCharges: parseFloat(e.target.value) || 0 })}
-              min="0"
-              step="0.01"
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              disabled={loading}
-            />
-          </div>
-          
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Notes</label>
-            <textarea
-              value={formData.notes}
-              onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-              rows={3}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              placeholder="Describe any damage or issues with the returned item..."
-              disabled={loading}
-            />
-          </div>
-          
-          <div className="bg-gray-50 p-4 rounded-md">
-            <h3 className="font-medium text-gray-700 mb-2">Return Summary</h3>
-            <div className="grid grid-cols-2 gap-2 text-sm">
-              <div>Item:</div>
-              <div className="text-right font-medium">{rental.rentalItem.name}</div>
-              
-              <div>Outstanding Balance:</div>
-              <div className="text-right">KES {(rental.balanceDue || 0).toFixed(2)}</div>
-              
-              <div>Late Fees ({Math.max(0, Math.ceil((new Date().getTime() - new Date(rental.expectedReturnDate).getTime()) / (1000 * 3600 * 24)))} days):</div>
-              <div className="text-right">KES {lateFees.toFixed(2)}</div>
-              
-              <div>Damage Charges:</div>
-              <div className="text-right">KES {formData.damageCharges.toFixed(2)}</div>
-              
-              <div className="font-medium border-t pt-1 text-green-600">Total Due:</div>
-              <div className="text-right font-medium border-t pt-1 text-green-600">KES {totalDue.toFixed(2)}</div>
+        {/* Scrollable Content */}
+        <div className="flex-1 overflow-y-auto">
+          <form onSubmit={handleSubmit} className="p-6 space-y-6">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Return Condition*</label>
+              <select
+                value={formData.returnCondition}
+                onChange={(e) => setFormData({ ...formData, returnCondition: e.target.value })}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                required
+                disabled={loading}
+              >
+                {returnConditions.map(condition => (
+                  <option key={condition.value} value={condition.value}>{condition.label}</option>
+                ))}
+              </select>
             </div>
             
-            {formData.returnCondition === 'LOST' && (
-              <div className="mt-3 p-2 bg-red-100 border border-red-200 rounded-md">
-                <p className="text-sm text-red-700">
-                  ⚠️ Warning: Marking as LOST will remove this item from inventory.
-                </p>
-              </div>
-            )}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Damage Charges (KES)</label>
+              <input
+                type="number"
+                value={formData.damageCharges}
+                onChange={(e) => setFormData({ ...formData, damageCharges: parseFloat(e.target.value) || 0 })}
+                min="0"
+                step="0.01"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                disabled={loading}
+                placeholder="0.00"
+              />
+            </div>
             
-            {formData.returnCondition === 'DAMAGED' && (
-              <div className="mt-3 p-2 bg-yellow-100 border border-yellow-200 rounded-md">
-                <p className="text-sm text-yellow-700">
-                  ⚠️ Item will be marked for repair and unavailable for rental.
-                </p>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Notes</label>
+              <textarea
+                value={formData.notes}
+                onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
+                rows={3}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors resize-none"
+                placeholder="Describe any damage or issues with the returned item..."
+                disabled={loading}
+              />
+            </div>
+            
+            <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
+              <h3 className="font-medium text-gray-900 mb-3 text-sm">Return Summary</h3>
+              <div className="grid grid-cols-2 gap-2 text-sm">
+                <div className="text-gray-600">Item:</div>
+                <div className="text-right font-medium text-gray-900">{rental.rentalItem.name}</div>
+                
+                <div className="text-gray-600">Outstanding Balance:</div>
+                <div className="text-right">KES {(rental.balanceDue || 0).toFixed(2)}</div>
+                
+                <div className="text-gray-600">
+                  Late Fees (
+                  {Math.max(0, Math.ceil((new Date().getTime() - new Date(rental.expectedReturnDate).getTime()) / (1000 * 3600 * 24)))} 
+                  days):
+                </div>
+                <div className={`text-right ${lateFees > 0 ? 'text-red-600 font-medium' : ''}`}>
+                  KES {lateFees.toFixed(2)}
+                </div>
+                
+                <div className="text-gray-600">Damage Charges:</div>
+                <div className={`text-right ${formData.damageCharges > 0 ? 'text-red-600 font-medium' : ''}`}>
+                  KES {formData.damageCharges.toFixed(2)}
+                </div>
+                
+                <div className="font-medium text-gray-900 border-t pt-2 mt-1">Total Due:</div>
+                <div className="text-right font-bold border-t pt-2 mt-1 text-green-600">
+                  KES {totalDue.toFixed(2)}
+                </div>
               </div>
-            )}
-          </div>
-          
-          <div className="flex justify-end space-x-3 pt-4">
+              
+              {formData.returnCondition === 'LOST' && (
+                <div className="mt-3 p-3 bg-red-50 border border-red-100 rounded-md">
+                  <p className="text-sm text-red-700 flex items-start gap-2">
+                    <span className="mt-0.5">⚠️</span>
+                    <span>Warning: Marking as LOST will remove this item from inventory.</span>
+                  </p>
+                </div>
+              )}
+              
+              {formData.returnCondition === 'DAMAGED' && (
+                <div className="mt-3 p-3 bg-yellow-50 border border-yellow-100 rounded-md">
+                  <p className="text-sm text-yellow-700 flex items-start gap-2">
+                    <span className="mt-0.5">⚠️</span>
+                    <span>Item will be marked for repair and unavailable for rental.</span>
+                  </p>
+                </div>
+              )}
+            </div>
+          </form>
+        </div>
+        
+        {/* Fixed Footer with Action Buttons */}
+        <div className="border-t border-gray-200 p-6 flex-shrink-0">
+          <div className="flex justify-end space-x-3">
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-100 disabled:opacity-50"
+              className="px-5 py-2.5 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 disabled:opacity-50 font-medium transition-colors"
               disabled={loading}
             >
               Cancel
             </button>
             <button
               type="submit"
-              className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 flex items-center justify-center"
+              onClick={handleSubmit}
+              className="px-5 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 font-medium transition-colors flex items-center justify-center min-w-[120px]"
               disabled={loading}
             >
               {loading ? (
                 <>
-                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                  <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent mr-2"></div>
                   Processing...
                 </>
               ) : (
@@ -882,7 +946,7 @@ function ReturnModal({
               )}
             </button>
           </div>
-        </form>
+        </div>
       </div>
     </div>
   );

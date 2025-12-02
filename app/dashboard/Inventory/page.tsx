@@ -866,7 +866,8 @@ function HardwareItemModal({ onClose }: { onClose: () => void }) {
     }
 
     // Validate all required fields
-    if (!formData.itemName || !formData.category || !formData.supplier) {
+    if (!formData.itemName || !formData.category || !formData.sellingUnit ||
+        !formData.price || !formData.SellingPrice || !formData.stockQuantity) {
       window.showToast("Please fill in all required fields", "error");
       return;
     }
@@ -913,18 +914,24 @@ function HardwareItemModal({ onClose }: { onClose: () => void }) {
     window.showToast("Item created successfully!", "success");
     onClose();
     await loadItems(); // Refresh the items list
-  } catch (error: any) {
-    console.error('Error creating item:', error);
+  } 
     
     // More specific error messages
-    if (error.response?.data?.message) {
-      window.showToast(`Failed to create item: ${error.response.data.message}`, "error");
-    } else if (error.message) {
-      window.showToast(`Failed to create item: ${error.message}`, "error");
-    } else {
-      window.showToast("Failed to create item. Please try again.", "error");
-    }
+   catch (error: unknown) {
+  const err = error as { 
+    response?: { data?: { message?: string } }; 
+    message?: string 
+  };
+
+  if (err.response?.data?.message) {
+    window.showToast(`Failed to create item: ${err.response.data.message}`, "error");
+  } else if (err.message) {
+    window.showToast(`Failed to create item: ${err.message}`, "error");
+  } else {
+    window.showToast("Failed to create item. Please try again.", "error");
   }
+}
+
 };
 
   return (

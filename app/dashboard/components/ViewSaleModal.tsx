@@ -10,7 +10,7 @@ interface SaleItem {
 }
 
 interface Sale {
- customerPhone: string;
+  customerPhone: string;
   balance: number;
   id: number;
   customerName: string;
@@ -115,96 +115,117 @@ export default function ViewSaleModal({ sale, onClose }: ViewSaleModalProps) {
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg p-6 w-full max-w-2xl shadow-lg">
-        {/* Header */}
-        <div className="flex justify-between items-center mb-4">
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-lg shadow-xl w-full max-w-2xl max-h-[90vh] flex flex-col">
+        {/* Header - Fixed */}
+        <div className="flex justify-between items-center p-6 border-b border-gray-200 flex-shrink-0">
           <h2 className="text-xl font-bold text-gray-800">
             Sale #{sale.id}
           </h2>
           <button
             onClick={onClose}
-            className="text-gray-500 hover:text-gray-700 text-2xl"
+            className="text-gray-500 hover:text-gray-700 text-2xl w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100"
+            aria-label="Close"
           >
             &times;
           </button>
         </div>
 
-        {/* Customer Info */}
-        <div className="mb-4 text-gray-700 space-y-1">
-          <p><strong>Customer:</strong> {sale.customerName}</p>
-          {sale.customerPhone && <p><strong>Phone:</strong> {sale.customerPhone}</p>}
-          <p><strong>Date:</strong> {new Date(sale.saleDate).toLocaleDateString()}</p>
+        {/* Scrollable Content */}
+        <div className="flex-1 overflow-y-auto p-6">
+          {/* Customer Info */}
+          <div className="mb-6 text-gray-700 space-y-2">
+            <p><strong className="text-gray-900">Customer:</strong> {sale.customerName}</p>
+            {sale.customerPhone && <p><strong className="text-gray-900">Phone:</strong> {sale.customerPhone}</p>}
+            <p><strong className="text-gray-900">Date:</strong> {new Date(sale.saleDate).toLocaleDateString()}</p>
+          </div>
+
+          {/* Items Table */}
+          <div className="mb-6">
+            <div className="overflow-x-auto">
+              <table className="min-w-full text-sm border border-gray-200">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="p-3 border border-gray-200 text-left font-semibold text-gray-900">Product</th>
+                    <th className="p-3 border border-gray-200 text-left font-semibold text-gray-900">Qty</th>
+                    <th className="p-3 border border-gray-200 text-left font-semibold text-gray-900">Unit Price</th>
+                    <th className="p-3 border border-gray-200 text-left font-semibold text-gray-900">Line Total</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {sale.items.map((item, idx) => (
+                    <tr key={idx} className={idx % 2 === 0 ? "bg-white" : "bg-gray-50"}>
+                      <td className="p-3 border border-gray-200">{item.productName}</td>
+                      <td className="p-3 border border-gray-200 text-center">{item.quantity}</td>
+                      <td className="p-3 border border-gray-200">KES {(item.unitPrice || 0).toFixed(2)}</td>
+                      <td className="p-3 border border-gray-200 font-medium">KES {(item.lineTotal || 0).toFixed(2)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          {/* Totals */}
+          <div className="text-gray-800 space-y-2 mb-6 bg-gray-50 p-4 rounded-lg">
+            <p className="flex justify-between">
+              <strong className="text-gray-900">Total:</strong>
+              <span className="font-bold">KES {(sale.totalAmount || 0).toFixed(2)}</span>
+            </p>
+            <p className="flex justify-between">
+              <strong className="text-gray-900">Paid:</strong>
+              <span className="font-bold">KES {(sale.paidAmount || 0).toFixed(2)}</span>
+            </p>
+            <p className="flex justify-between">
+              <strong className="text-gray-900">Balance:</strong>
+              <span className={`font-bold ${sale.balance > 0 ? "text-green-600" : sale.balance < 0 ? "text-red-600" : "text-gray-900"}`}>
+                KES {(sale.balance || 0).toFixed(2)}{" "}
+                <span className="text-sm font-normal">
+                  {sale.balance > 0
+                    ? "(Overpaid)"
+                    : sale.balance < 0
+                    ? "(Pending)"
+                    : "(Cleared)"}
+                </span>
+              </span>
+            </p>
+            {sale.paymentMethod && (
+              <p className="flex justify-between">
+                <strong className="text-gray-900">Payment Method:</strong>
+                <span>{sale.paymentMethod}</span>
+              </p>
+            )}
+          </div>
         </div>
 
-        {/* Items Table */}
-        <div className="overflow-x-auto mb-4">
-          <table className="min-w-full text-sm border">
-            <thead className="bg-gray-100">
-              <tr>
-                <th className="p-2 border">Product</th>
-                <th className="p-2 border">Qty</th>
-                <th className="p-2 border">Unit Price</th>
-                <th className="p-2 border">Line Total</th>
-              </tr>
-            </thead>
-            <tbody>
-              {sale.items.map((item, idx) => (
-                <tr key={idx}>
-                  <td className="p-2 border">{item.productName}</td>
-                  <td className="p-2 border">{item.quantity}</td>
-                  <td className="p-2 border">KES {(item.unitPrice || 0).toFixed(2)}</td>
-                  <td className="p-2 border">KES {(item.lineTotal || 0).toFixed(2)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-
-        {/* Totals */}
-        <div className="text-gray-800 space-y-1 mb-6">
-          <p><strong>Total:</strong> KES {(sale.totalAmount || 0).toFixed(2)}</p>
-          <p><strong>Paid:</strong> KES {(sale.paidAmount || 0).toFixed(2)}</p>
-          <p>
-            <strong>Balance:</strong>{" "}
-            KES {(sale.balance || 0).toFixed(2)}{" "}
-            {sale.balance > 0
-              ? "(Overpaid)"
-              : sale.balance < 0
-              ? "(Pending)"
-              : "(Cleared)"}
-          </p>
-          {sale.paymentMethod && (
-            <p><strong>Payment Method:</strong> {sale.paymentMethod}</p>
-          )}
-        </div>
-
-        {/* Action Buttons */}
-        <div className="flex flex-wrap gap-3">
-          <button
-            onClick={() => generateSalePDF("invoice")}
-            className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg"
-          >
-            Download Invoice
-          </button>
-          <button
-            onClick={() => generateSalePDF("receipt")}
-            className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg"
-          >
-            Download Receipt
-          </button>
-          <button
-            onClick={() => shareSale("invoice")}
-            className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg"
-          >
-            Share Invoice
-          </button>
-          <button
-            onClick={() => shareSale("receipt")}
-            className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg"
-          >
-            Share Receipt
-          </button>
+        {/* Action Buttons - Fixed at bottom */}
+        <div className="border-t border-gray-200 p-6 flex-shrink-0">
+          <div className="flex flex-wrap gap-3">
+            <button
+              onClick={() => generateSalePDF("invoice")}
+              className="flex-1 min-w-[150px] bg-green-600 hover:bg-green-700 text-white px-4 py-3 rounded-lg font-medium transition-colors"
+            >
+              Download Invoice
+            </button>
+            <button
+              onClick={() => generateSalePDF("receipt")}
+              className="flex-1 min-w-[150px] bg-blue-600 hover:bg-blue-700 text-white px-4 py-3 rounded-lg font-medium transition-colors"
+            >
+              Download Receipt
+            </button>
+            <button
+              onClick={() => shareSale("invoice")}
+              className="flex-1 min-w-[150px] bg-purple-600 hover:bg-purple-700 text-white px-4 py-3 rounded-lg font-medium transition-colors"
+            >
+              Share Invoice
+            </button>
+            <button
+              onClick={() => shareSale("receipt")}
+              className="flex-1 min-w-[150px] bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-3 rounded-lg font-medium transition-colors"
+            >
+              Share Receipt
+            </button>
+          </div>
         </div>
       </div>
     </div>

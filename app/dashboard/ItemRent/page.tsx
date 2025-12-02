@@ -108,7 +108,7 @@ function RentalItemModal({
       } else {
         await rentalApi.createRentalItem(formData);
       }
-      alert(`Rental item ${isEditMode ? 'updated' : 'added'} successfully!`);
+      window.showToast(`Rental item ${isEditMode ? 'updated' : 'added'} successfully!`, "success");
       onSave();
       onClose();
     } catch (error) {

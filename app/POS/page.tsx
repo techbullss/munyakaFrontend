@@ -124,8 +124,7 @@ export default function POSComponent() {
   const [paymentMethod, setPaymentMethod] = useState<"cash" | "mpesa" | "bank">(
     "cash"
   );
-  const [mpesaNumber, setMpesaNumber] = useState("");
-  const [bankReference, setBankReference] = useState("");
+  
   const [customerName, setCustomerName] = useState("");
   const [customerPhone, setCustomerPhone] = useState("");
   const [isProcessing, setIsProcessing] = useState(false);
@@ -154,7 +153,7 @@ export default function POSComponent() {
 
   useEffect(() => {
     loadInitialProducts();
-  }, []);
+  }, [itemsPerPage, currentPage]);
 
   const loadInitialProducts = async () => {
     try {
@@ -215,7 +214,7 @@ const validatePhoneNumber = (phone: string) => {
         // Reset pagination for search results
         setCurrentPage(1);
         setTotalPages(0);
-      } catch (error) {
+      } catch (err) {
         window.showToast("Failed to search products", "error");
       } finally {
         setIsSearching(false);
@@ -225,7 +224,7 @@ const validatePhoneNumber = (phone: string) => {
     return () => {
       if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current);
     };
-  }, [searchTerm]);
+  }, [searchTerm, activeCat, loadProducts]);
 
   const addToCart = (product: InventoryItem) => {
     const existingItem = cart.find((item) => item.id === product.id);
@@ -613,8 +612,7 @@ const processPayment = async () => {
 
     // Reset UI (keep lastSale so reprint works)
     setCart([]);
-    setMpesaNumber("");
-    setBankReference("");
+    
     setCustomerName("");
     setCustomerPhone("");
     setAmountPaid(0);
@@ -714,8 +712,12 @@ const processPayment = async () => {
                       {/* Left Section */}
                       <div className="flex flex-col space-y-0.5">
                         <p className="text-[0.95rem] font-semibold text-gray-900">
-                          {product.itemName} <span className="text-red-400">sold in {product.sellingUnit}</span> 
+                          {product.itemName}  
                         </p>
+       <div className="inline-flex items-center gap-1 text-xs font-semibold text-gray-700 bg-gray-100 px-2 py-1 rounded-full">
+    <span className="w-1.5 h-1.5 bg-green-500 rounded-full"></span>
+    Bei ni ya: {product.sellingUnit.toUpperCase()}
+</div>
                         <p className="text-xs text-gray-500 italic">
                           {product.category || 'Uncategorized'}
                         </p>
