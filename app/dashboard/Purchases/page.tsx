@@ -691,7 +691,7 @@ export default function Purchases() {
             onClick={async () => {
               const total = selectedPurchase.items.reduce((t, i) => t + i.total, 0);
               if (editAmountPaid > total) {
-                alert("Amount Paid cannot exceed Total");
+                window.showToast("Amount Paid cannot exceed Total", "error");
                 return;
               }
               const balance = total - editAmountPaid;
@@ -839,11 +839,11 @@ export default function Purchases() {
                           <input
                             id="quantity"
                             type="number"
-                            min="1"
+                            
                             value={newItemQuantity}
-                            onChange={(e) => setNewItemQuantity(parseInt(e.target.value) || 1)}
+                            onChange={(e) => setNewItemQuantity(parseInt(e.target.value) )}
                             className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                            placeholder="1"
+                            placeholder=""
                           />
                         </div>
 
@@ -853,15 +853,14 @@ export default function Purchases() {
                           </label>
                           <div className="relative">
                             <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                              <span className="text-gray-500">ksh</span>
+                              
                             </div>
                             <input
                               id="price"
                               type="number"
-                              min="0.01"
-                              step="0.01"
+                              
                               value={newItemPrice}
-                              onChange={(e) => setNewItemPrice(parseFloat(e.target.value) || 0)}
+                              onChange={(e) => setNewItemPrice(parseFloat(e.target.value))}
                               className="w-full pl-8 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                               placeholder="0.00"
                             />
@@ -885,7 +884,7 @@ export default function Purchases() {
                               >
                                 <div className="flex justify-between items-center">
                                   <span className="font-medium text-gray-900">{product.name}</span>
-                                  <span className="text-green-600 font-semibold">${product.price.toFixed(2)}</span>
+                                  <span className="text-green-600 font-semibold">KES{product.price.toFixed(2)}</span>
                                 </div>
                               </button>
                             ))}
@@ -896,15 +895,15 @@ export default function Purchases() {
                       <button
                         onClick={() => {
                           if (!productSearch.trim()) {
-                            alert("Please enter a commodity name");
+                            window.showToast("Please enter a commodity name", "error");
                             return;
                           }
                           if (newItemQuantity <= 0) {
-                            alert("Please enter a valid quantity");
+                            window.showToast("Please enter a valid quantity", "error");
                             return;
                           }
                           if (newItemPrice <= 0) {
-                            alert("Please enter a valid price");
+                            window.showToast("Please enter a valid price", "error");
                             return;
                           }
                           
@@ -966,7 +965,7 @@ export default function Purchases() {
                             <div className="col-span-2">
                               <div className="relative">
                                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                  <span className="text-gray-500">$</span>
+                                  <span className="text-gray-500">ksh</span>
                                 </div>
                                 <input
                                   type="number"
@@ -1030,14 +1029,14 @@ export default function Purchases() {
                     </label>
                     <div className="relative">
                       <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                        <span className="text-gray-500">Ksh</span>
+                        
                       </div>
                       <input
                         type="number"
                         min="0"
                         step="0.01"
                         value={newAmountPaid}
-                        onChange={(e) => setNewAmountPaid(parseFloat(e.target.value) || 0)}
+                        onChange={(e) => setNewAmountPaid(parseFloat(e.target.value) )}
                         className="w-full pl-8 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                         placeholder="0.00"
                       />

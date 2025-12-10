@@ -60,6 +60,7 @@ interface PaginatedResponse {
   size: number;
 }
 
+
 const API_BASE_URL = "http://localhost:8080/api";
 
 const posApi = {
@@ -154,7 +155,23 @@ export default function POSComponent() {
   useEffect(() => {
     loadInitialProducts();
   }, [itemsPerPage, currentPage]);
-
+const updatePrice = (id: number, newPrice: number) => {
+  if (newPrice < 0) return;
+  
+  setCart(
+    cart.map((item) => {
+      if (item.id === id) {
+        const updatedItem = {
+          ...item,
+          price: newPrice,
+          total: (newPrice * item.quantity) - item.discountAmount
+        };
+        return updatedItem;
+      }
+      return item;
+    })
+  );
+};
   const loadInitialProducts = async () => {
     try {
       const response = await posApi.getItems({
@@ -224,7 +241,7 @@ const validatePhoneNumber = (phone: string) => {
     return () => {
       if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current);
     };
-  }, [searchTerm, activeCat, loadProducts]);
+  }, [searchTerm, activeCat]);
 
   const addToCart = (product: InventoryItem) => {
     const existingItem = cart.find((item) => item.id === product.id);
@@ -277,36 +294,62 @@ const validatePhoneNumber = (phone: string) => {
   const item = cart.find((i) => i.id === id);
   if (!item) return;
 
-  // prevent exceeding stock
+  // Handle empty or invalid input
+  if (isNaN(newQuantity) || newQuantity === null) {
+    return; // Don't update if input is empty
+  }
+
+  // Allow 0 in the field - don't auto-remove
+  // Just update the value
+  
+  // Prevent negative numbers
+  if (newQuantity < 0) {
+    newQuantity = 0;
+  }
+
+  // Prevent exceeding stock
   if (newQuantity > item.stock) {
-    window.showToast(`Only ${item.stock} items available in stock`, "error");
+    window.showToast(`Only ${item.stock} ${item.soldAs} available in stock`, "error");
     return;
   }
 
-  // if quantity is 0 or below, remove item
-  if (newQuantity <= 0) {
-    removeFromCart(id);
-    return;
-  }
-
-  // update item
+  // Always update the cart with the new quantity
+  // Even if it's 0 - let the user decide to remove it
   setCart(
     cart.map((i) =>
       i.id === id
         ? {
             ...i,
-            quantity: parseFloat(newQuantity.toFixed(2)), // keep decimals neat
-            total:
-              parseFloat(
-                (i.price * newQuantity -
-                  ((i.price * newQuantity) * i.discount) / 100).toFixed(2)
-              ),
+            quantity: newQuantity,
+            total: newQuantity > 0 
+              ? parseFloat((i.price * newQuantity - (i.discountAmount || 0)).toFixed(2))
+              : 0, // Total is 0 if quantity is 0
           }
         : i
     )
   );
 };
 
+// Separate function to remove item
+
+
+// Add this to your input for better UX
+const handleQuantityKeyPress = (e: React.KeyboardEvent, id: number, currentQty: number) => {
+  if (e.key === 'Enter') {
+    const input = e.target as HTMLInputElement;
+    const value = parseFloat(input.value);
+    
+    // If user presses Enter with 0, ask if they want to remove
+    if (value === 0) {
+      if (window.confirm("Do you want to remove this item from cart?")) {
+        removeFromCart(id);
+      } else {
+        // Restore previous quantity
+        updateQuantity(id, currentQty || 0.01);
+      }
+    }
+  }
+};
 
   const updateDiscount = (id: number, discountAmount: number) => {
   setCart(
@@ -612,7 +655,7 @@ const processPayment = async () => {
 
     // Reset UI (keep lastSale so reprint works)
     setCart([]);
-    
+    setProducts([]);
     setCustomerName("");
     setCustomerPhone("");
     setAmountPaid(0);
@@ -644,7 +687,7 @@ const processPayment = async () => {
     </div></span>
         </div>
       {/* Outer container */}
-      <div className="bg-white  rounded-2xl   grid grid-cols-1 lg:grid-cols-3 gap-2">
+      <div className="bg-white  rounded-2xl   grid grid-cols-1 lg:grid-cols-4 gap-2">
         {/* Left side: Products */}
         <div className="lg:col-span-2 flex flex-col">
           {/* Search + Categories */}
@@ -866,7 +909,7 @@ const processPayment = async () => {
         </div>
 
         {/* Right side: Cart */}
-        <div className="bg-gray-50 rounded-2xl  flex flex-col">
+        <div className="bg-gray-50 rounded-2xl lg:col-span-2 flex flex-col">
           <h2 className="text-lg font-semibold text-gray-900 mb-4">Cart</h2>
 
           {/* Cart items */}
@@ -876,76 +919,104 @@ const processPayment = async () => {
             ) : (
               <table className="min-w-full text-sm">
                 <thead className="bg-gray-100 sticky top-0">
-                  <tr>
-                    <th className="px-2 py-2 text-left text-xs text-gray-500 uppercase">
-                      Item
-                    </th>
-                    <th className="px-2 py-2 text-left text-xs text-gray-500 uppercase">
-                      Qty
-                    </th>
-                    <th className="px-2 py-2 text-left text-xs text-gray-500 uppercase">
-                      Disc
-                    </th>
-                    <th className="px-2 py-2 text-left text-xs text-gray-500 uppercase">
-                      Total
-                    </th>
-                    <th></th>
-                  </tr>
-                </thead>
+  <tr>
+    <th className="px-2 py-2 text-left text-xs text-gray-500 uppercase">
+      Item
+    </th>
+    <th className="px-2 py-2 text-left text-xs text-gray-500 uppercase">
+      Qty
+    </th>
+    <th className="px-2 py-2 text-left text-xs text-gray-500 uppercase">
+      Price
+    </th>
+    <th className="px-2 py-2 text-left text-xs text-gray-500 uppercase">
+      Disc
+    </th>
+    <th className="px-2 py-2 text-left text-xs text-gray-500 uppercase">
+      Total
+    </th>
+    <th></th>
+  </tr>
+</thead>
                 <tbody className="divide-y">
-                  {cart.map((item) => (
-                    <tr key={item.id} className="hover:bg-gray-50">
-                      <td className="px-2 py-1">{item.name}{item.variant?.Size}/{item.variant?.Gauge}</td>
-                      <td className="px-2 py-1">
-                                               <div className="flex "> 
-                                                <input
-                                                          type="number"
-                                                          step="0.25"
-                                                          min="0.25"
-                                                          value={item.quantity}
-                                                          onChange={(e) => updateQuantity(item.id, parseFloat(e.target.value))}
-                                                          className="w-20 px-2 py-1 border rounded text-sm text-center focus:outline-none focus:ring focus:ring-blue-300"
-                                                        />
-                                                        <p>{item.soldAs}</p>
-
-                        </div>
-
-
-                      </td>
-                      <td className="px-2 py-1">
-                        <input
-                          type="number"
-                          min="0"
-                          max={item.price * item.quantity}
-                          value={item.discountAmount || 0}
-                          onChange={(e) =>
-                            updateDiscount(
-                              item.id,
-                              parseFloat(e.target.value) || 0
-                            )
-                          }
-                          className="w-16 px-1 py-0.5 border rounded text-xs"
-
-                        />
-                        
-                      </td>
-                      <td className="px-2 py-1 font-medium text-gray-700">
-                        KES{" "}
-                        {(
-                          item.price * item.quantity -
-                          (item.discountAmount || 0)
-                        ).toFixed(2)}
-                      </td>
-                      <td className="px-2 py-1">
-                        <button
-                          onClick={() => removeFromCart(item.id)}
-                          className="text-red-500 hover:text-red-700 text-xs font-medium"
-                        >
-                          ✕
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
+                {cart.map((item) => (
+  <tr key={item.id} className="hover:bg-gray-50">
+    <td className="px-2 py-1">{item.name}{item.variant?.Size}/{item.variant?.Gauge}</td>
+   <td className="px-2 py-1">
+  <div className="flex items-center"> 
+    <input
+      type="number"
+      step="any"  // Allows any decimal value
+      min=""     // Allow 0
+      value={item.quantity}
+      onChange={(e) => {
+        const value = e.target.value;
+        // Allow empty input, negative, 0, any number
+        if (value === '') {
+          // Keep field empty temporarily
+          updateQuantity(item.id, 0);
+        } else {
+          const numValue = parseFloat(value);
+          if (!isNaN(numValue)) {
+            updateQuantity(item.id, numValue);
+          }
+        }
+      }}
+      onBlur={(e) => {
+        // When user leaves field, ensure at least 0
+        if (e.target.value === '' || parseFloat(e.target.value) < 0) {
+          updateQuantity(item.id, 0.01); // Set to minimum when blurring
+        }
+      }}
+      className="w-24 px-2 py-1 border rounded text-sm text-center focus:outline-none focus:ring-2 focus:ring-blue-500"
+      placeholder="Qty"
+    />
+    <p className="ml-2 text-xs text-gray-500">{item.soldAs}</p>
+  </div>
+</td>
+    <td className="px-2 py-1">
+      <input
+        type="number"
+        step="0.01"
+        min="0"
+        value={item.price}
+        onChange={(e) => updatePrice(item.id, parseFloat(e.target.value) || 0)}
+        className="w-20 px-2 py-1 border rounded text-sm text-center focus:outline-none focus:ring focus:ring-blue-300"
+      />
+    </td>
+    <td className="px-2 py-1">
+      <input
+        type="number"
+        step="0.01"
+        min="0"
+        max={item.price * item.quantity}
+        value={item.discountAmount || 0}
+        onChange={(e) =>
+          updateDiscount(
+            item.id,
+            parseFloat(e.target.value) || 0
+          )
+        }
+        className="w-16 px-1 py-0.5 border rounded text-xs"
+      />
+    </td>
+    <td className="px-2 py-1 font-medium text-gray-700">
+      KES{" "}
+      {(
+        item.price * item.quantity -
+        (item.discountAmount || 0)
+      ).toFixed(2)}
+    </td>
+    <td className="px-2 py-1">
+      <button
+        onClick={() => removeFromCart(item.id)}
+        className="text-red-500 hover:text-red-700 text-xs font-medium"
+      >
+        ✕
+      </button>
+    </td>
+  </tr>
+))}
                 </tbody>
               </table>
             )}

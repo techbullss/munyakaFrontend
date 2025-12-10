@@ -11,7 +11,7 @@ interface SaleItem {
 
 interface Sale {
   customerPhone: string;
-  balance: number;
+  
   id: number;
   customerName: string;
   saleDate: string;
@@ -74,7 +74,7 @@ export default function ViewSaleModal({ sale, onClose }: ViewSaleModalProps) {
     doc.text(`Total: KES ${(sale.totalAmount || 0).toFixed(2)}`, 14, finalY + 10);
     doc.text(`Paid: KES ${(sale.paidAmount || 0).toFixed(2)}`, 14, finalY + 16);
 
-    const balance = sale.balance || 0;
+    const balance = sale.balanceDue || 0;
     doc.text(
       `Balance: KES ${balance.toFixed(2)} ${
         balance > 0 ? "(Overpaid)" : balance < 0 ? "(Pending)" : "(Cleared)"
@@ -178,12 +178,12 @@ export default function ViewSaleModal({ sale, onClose }: ViewSaleModalProps) {
             </p>
             <p className="flex justify-between">
               <strong className="text-gray-900">Balance:</strong>
-              <span className={`font-bold ${sale.balance > 0 ? "text-green-600" : sale.balance < 0 ? "text-red-600" : "text-gray-900"}`}>
-                KES {(sale.balance || 0).toFixed(2)}{" "}
+              <span className={`font-bold ${(sale.balanceDue ?? 0) > 0 ? "text-green-600" : (sale.balanceDue ?? 0) < 0 ? "text-red-600" : "text-gray-900"}`}>
+                KES {(sale.balanceDue ?? 0).toFixed(2)}{" "}
                 <span className="text-sm font-normal">
-                  {sale.balance > 0
+                  {(sale.balanceDue ?? 0) > 0
                     ? "(Overpaid)"
-                    : sale.balance < 0
+                    : (sale.balanceDue ?? 0) < 0
                     ? "(Pending)"
                     : "(Cleared)"}
                 </span>

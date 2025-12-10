@@ -103,12 +103,12 @@ export default function Expenditures() {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
         <div className="bg-white p-6 rounded-lg shadow">
           <h3 className="text-lg font-medium text-gray-500">Total Expenses</h3>
-          <p className="mt-2 text-2xl font-semibold text-gray-900">${totalAmount.toFixed(2)}</p>
+          <p className="mt-2 text-2xl font-semibold text-gray-900">KES{totalAmount.toFixed(2)}</p>
           <p className="mt-1 text-sm text-gray-500">This page</p>
         </div>
         <div className="bg-white p-6 rounded-lg shadow">
           <h3 className="text-lg font-medium text-gray-500">Average Expense</h3>
-          <p className="mt-2 text-2xl font-semibold text-gray-900">${avgAmount.toFixed(2)}</p>
+          <p className="mt-2 text-2xl font-semibold text-gray-900">KES{avgAmount.toFixed(2)}</p>
           <p className="mt-1 text-sm text-gray-500">Per transaction</p>
         </div>
       </div>
@@ -162,7 +162,7 @@ export default function Expenditures() {
                   <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500">{exp.date}</td>
                   <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">{exp.category}</td>
                   <td className="px-4 py-4 text-sm text-gray-900">{exp.description}</td>
-                  <td className="px-4 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${exp.amount.toFixed(2)}</td>
+                  <td className="px-4 py-4 whitespace-nowrap text-sm font-medium text-gray-900">KES{exp.amount.toFixed(2)}</td>
                   <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500">{exp.paymentMethod}</td>
                   <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500 flex space-x-2">
                     <button className="text-blue-600 hover:text-blue-900" onClick={() => { setEditingExpense(exp); setShowModal(true); }}>
