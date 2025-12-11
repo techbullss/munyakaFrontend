@@ -161,10 +161,18 @@ const updatePrice = (id: number, newPrice: number) => {
   setCart(
     cart.map((item) => {
       if (item.id === id) {
+        // Recalculate discount based on new price
+        const maxAllowedDiscount = newPrice * 0.05; // 5% of new price
+        const discountAmount = Math.min(
+          item.discountAmount || 0,
+          maxAllowedDiscount * item.quantity
+        );
+        
         const updatedItem = {
           ...item,
           price: newPrice,
-          total: (newPrice * item.quantity) - item.discountAmount
+          discountAmount,
+          total: (newPrice * item.quantity) - discountAmount
         };
         return updatedItem;
       }
@@ -266,24 +274,25 @@ const validatePhoneNumber = (phone: string) => {
       }
     } else {
       if (product.stockQuantity > 0) {
-        setCart([
-          ...cart,
-          {
-            id: product.id,
-            name: product.itemName,
-            price: product.sellingPrice,
-            quantity: 1,
-            discount: 0,
-            soldAs: product.sellingUnit,
-            total: product.sellingPrice,
-            stock: product.stockQuantity,
-            discountAmount: 0,
-            buyingPrice: product.price,
-            sellingPrice: product.sellingPrice,
-            variant: product.variants || {},
-            variants: {}
-          },
-        ]);
+       // In your addToCart function:
+setCart([
+  ...cart,
+  {
+    id: product.id,
+    name: product.itemName,
+    price: product.sellingPrice, // This is editable
+    quantity: 1,
+    discount: 0,
+    soldAs: product.sellingUnit,
+    total: product.sellingPrice,
+    stock: product.stockQuantity,
+    discountAmount: 0,
+    buyingPrice: product.price,
+    sellingPrice: product.sellingPrice,
+    variant: product.variants || {},
+    variants: {}
+  },
+]);
       } else {
         window.showToast("This product is out of stock", "error");
       }
@@ -351,20 +360,22 @@ const handleQuantityKeyPress = (e: React.KeyboardEvent, id: number, currentQty: 
   }
 };
 
-  const updateDiscount = (id: number, discountAmount: number) => {
+const updateDiscount = (id: number, discountAmount: number) => {
   setCart(
     cart.map((item) => {
       if (item.id === id) {
-        // Maximum discount = 5% of selling price per unit
-        const maxAllowedDiscount = item.sellingPrice * 0.05;
-
+        // Use current price instead of sellingPrice
+        const maxAllowedDiscount = item.price * 0.05; // 5% of CURRENT price
+        
         if (discountAmount > maxAllowedDiscount * item.quantity) {
-          window.showToast(`Discount cannot exceed 5% of the selling price (KES ${maxAllowedDiscount.toFixed(2)} per item)`, "error");
+          window.showToast(
+            `Discount cannot exceed 5% of the current price (KES ${maxAllowedDiscount.toFixed(2)} per item)`, 
+            "error"
+          );
           discountAmount = maxAllowedDiscount * item.quantity;
         }
 
-        const discountedTotal =
-          (item.sellingPrice * item.quantity) - discountAmount;
+        const discountedTotal = (item.price * item.quantity) - discountAmount;
 
         return {
           ...item,

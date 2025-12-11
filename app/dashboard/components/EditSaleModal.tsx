@@ -19,7 +19,6 @@ interface Sale {
   totalAmount: number;
   paidAmount: number;
   balance: number;
-  
   profit: number;
   paymentStatus: string;
   paymentMethod: string;
@@ -32,7 +31,7 @@ interface Product {
   id: number;
   itemName: string;
   sellingPrice: number;
-  price: number; // buying price
+  price: number;
   category?: string;
   description?: string;
   stockQuantity?: number;
@@ -52,14 +51,7 @@ export default function EditSaleModal({ sale, onClose, onSave, availableProducts
   const [newPayment, setNewPayment] = useState<number>(0);
   const [errors, setErrors] = useState<string[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
-  const [showAddItem, setShowAddItem] = useState<boolean>(false);
-  const [newItem, setNewItem] = useState<Partial<SaleItem>>({
-    productId: 0,
-    quantity: 1,
-    discount: 0,
-  });
   const [availableStocks, setAvailableStocks] = useState<Map<number, number>>(new Map());
-  const [itemQuantitiesHistory, setItemQuantitiesHistory] = useState<Map<number, number>>(new Map()); // productId -> original quantity
 
   const productsArray = Array.isArray(availableProducts) ? availableProducts : [];
 
@@ -67,23 +59,20 @@ export default function EditSaleModal({ sale, onClose, onSave, availableProducts
     if (sale) {
       // Initialize available stocks from current products
       const stockMap = new Map<number, number>();
-      const quantitiesMap = new Map<number, number>(); // Track original quantities
       
       productsArray.forEach(product => {
         stockMap.set(product.id, product.stockQuantity || 0);
       });
 
-      // Add back original quantities to available stock and track them
+      // Add back original quantities to available stock
       sale.items.forEach(item => {
         if (item.productId && stockMap.has(item.productId)) {
           const currentStock = stockMap.get(item.productId) || 0;
           stockMap.set(item.productId, currentStock + item.quantity);
-          quantitiesMap.set(item.productId, item.quantity);
         }
       });
 
       setAvailableStocks(stockMap);
-      setItemQuantitiesHistory(quantitiesMap);
 
       // Set form data from sale
       setFormData({ 
@@ -94,12 +83,6 @@ export default function EditSaleModal({ sale, onClose, onSave, availableProducts
   }, [sale, productsArray]);
 
   if (!formData) return null;
-
-  // Check if a product has sufficient stock
-  const hasSufficientStock = (productId: number, requestedQuantity: number): boolean => {
-    const availableStock = availableStocks.get(productId) || 0;
-    return availableStock >= requestedQuantity;
-  };
 
   // Get available stock for a product
   const getAvailableStock = (productId: number): number => {
@@ -150,10 +133,16 @@ export default function EditSaleModal({ sale, onClose, onSave, availableProducts
       const item = updatedItems[index];
       
       // For quantity changes, check stock availability
-      if (field === 'quantity' && item.productId > 0) {
+      if (field === 'quantity') {
         const requestedQuantity = Number(value);
-        if (!hasSufficientStock(item.productId, requestedQuantity)) {
-          setErrors([`Insufficient stock for ${item.productName}. Available: ${getAvailableStock(item.productId)}`]);
+        const originalQuantity = item.quantity;
+        const availableStock = getAvailableStock(item.productId);
+        
+        // Calculate net change in quantity
+        const quantityChange = requestedQuantity - originalQuantity;
+        
+        if (quantityChange > 0 && quantityChange > availableStock) {
+          setErrors([`Insufficient stock for ${item.productName}. Available: ${availableStock}, Additional needed: ${quantityChange}`]);
           return prev;
         }
       }
@@ -166,78 +155,25 @@ export default function EditSaleModal({ sale, onClose, onSave, availableProducts
       };
 
       // Recalculate lineTotal if quantity, unitPrice, or discount changes
-      if (field === 'quantity' || field === 'unitPrice' || field === 'discount' || field === 'productId') {
-        const product = field === 'productId' 
-          ? productsArray.find(p => p.id === value)
-          : productsArray.find(p => p.id === item.productId);
+      if (field === 'quantity' || field === 'unitPrice' || field === 'discount') {
+        const quantity = field === 'quantity' ? Number(value) : updatedItem.quantity;
+        const unitPrice = field === 'unitPrice' ? Number(value) : updatedItem.unitPrice;
+        const discount = field === 'discount' ? Number(value) : updatedItem.discount;
         
-        if (product) {
-          const quantity = field === 'quantity' ? Number(value) : item.quantity;
-          const unitPrice = product.sellingPrice;
-          const discount = field === 'discount' ? Number(value) : item.discount;
-          const productId = field === 'productId' ? Number(value) : item.productId;
-          const productName = field === 'productId' ? product.itemName : item.productName;
-          const buyingPrice = product.price;
-          
-          const lineTotal = (unitPrice * quantity) - discount;
-          const profit = (unitPrice - buyingPrice) * quantity - discount;
-          
-          updatedItem.productId = productId;
-          updatedItem.productName = productName;
-          updatedItem.unitPrice = unitPrice;
-          updatedItem.lineTotal = lineTotal;
-          updatedItem.buyingPrice = buyingPrice;
-          updatedItem.profit = profit;
-        }
+        // Calculate new line total
+        const lineTotal = (unitPrice * quantity) - discount;
+        const profit = (unitPrice - item.buyingPrice) * quantity - discount;
+        
+        updatedItem.quantity = quantity;
+        updatedItem.unitPrice = unitPrice;
+        updatedItem.discount = discount;
+        updatedItem.lineTotal = lineTotal;
+        updatedItem.profit = profit;
       }
 
       updatedItems[index] = updatedItem;
       const updatedSale = { ...prev, items: updatedItems };
-      return recalcTotals(updatedSale);
-    });
-  };
-
-  const addNewItem = () => {
-    if (!newItem.productId || (newItem.quantity ?? 0) <= 0) {
-      setErrors(["Please select a product and enter valid quantity"]);
-      return;
-    }
-
-    const product = productsArray.find(p => p.id === newItem.productId);
-    if (!product) {
-      setErrors(["Selected product not found"]);
-      return;
-    }
-
-    // Check stock availability
-    if (!hasSufficientStock(newItem.productId, newItem.quantity || 1)) {
-      setErrors([`Insufficient stock for ${product.itemName}. Available: ${getAvailableStock(newItem.productId)}`]);
-      return;
-    }
-
-    setFormData((prev) => {
-      if (!prev) return prev;
-      
-      const lineTotal = (product.sellingPrice * (newItem.quantity || 1)) - (newItem.discount || 0);
-      const profit = (product.sellingPrice - product.price) * (newItem.quantity || 1) - (newItem.discount || 0);
-      
-      const item: SaleItem = {
-        productId: newItem.productId!,
-        productName: product.itemName,
-        quantity: newItem.quantity || 1,
-        unitPrice: product.sellingPrice,
-        lineTotal: lineTotal,
-        discount: newItem.discount || 0,
-        profit: profit,
-        buyingPrice: product.price,
-      };
-
-      const updatedItems = [...prev.items, item];
-      const updatedSale = { ...prev, items: updatedItems };
-      setShowAddItem(false);
-      setNewItem({ productId: 0, quantity: 1, discount: 0 });
       setErrors([]);
-      
       return recalcTotals(updatedSale);
     });
   };
@@ -278,12 +214,37 @@ export default function EditSaleModal({ sale, onClose, onSave, availableProducts
 
   const validateForm = (): boolean => {
     const newErrors: string[] = [];
-    if (!formData.customerName?.trim()) newErrors.push("Customer name is required");
-    if (!formData.customerPhone?.trim()) newErrors.push("Customer phone is required");
-    if (!formData.saleDate) newErrors.push("Sale date is required");
-    if (formData.items.length === 0) newErrors.push("At least one item is required");
-    if (formData.paidAmount < 0) newErrors.push("Paid amount cannot be negative");
-    if (!formData.paymentMethod) newErrors.push("Payment method is required");
+    
+    // Only require customer info if balance is due (paid amount < total)
+    const hasBalanceDue = formData.balance > 0;
+    
+    if (hasBalanceDue) {
+      if (!formData.customerName?.trim()) {
+        newErrors.push("Customer name is required when balance is due");
+      }
+      if (!formData.customerPhone?.trim()) {
+        newErrors.push("Customer phone is required when balance is due");
+      }
+      
+      // Phone validation for Kenyan numbers (only if required)
+      const phoneRegex = /^(07|01)\d{8}$/;
+      if (formData.customerPhone && !phoneRegex.test(formData.customerPhone.replace(/\s/g, ''))) {
+        newErrors.push("Phone must start with 07 or 01 and be 10 digits");
+      }
+    }
+    
+    if (!formData.saleDate) {
+      newErrors.push("Sale date is required");
+    }
+    if (formData.items.length === 0) {
+      newErrors.push("At least one item is required");
+    }
+    if (formData.paidAmount < 0) {
+      newErrors.push("Paid amount cannot be negative");
+    }
+    if (!formData.paymentMethod) {
+      newErrors.push("Payment method is required");
+    }
     
     // Check stock for all items
     formData.items.forEach(item => {
@@ -295,49 +256,8 @@ export default function EditSaleModal({ sale, onClose, onSave, availableProducts
       }
     });
 
-    // Phone validation for Kenyan numbers
-    const phoneRegex = /^(07|01)\d{8}$/;
-    if (formData.customerPhone && !phoneRegex.test(formData.customerPhone.replace(/\s/g, ''))) {
-      newErrors.push("Phone must start with 07 or 01 and be 10 digits");
-    }
-
     setErrors(newErrors);
     return newErrors.length === 0;
-  };
-
-  const handleSaveBasic = async () => {
-    if (!formData) return;
-    if (!validateForm()) return;
-
-    setLoading(true);
-    try {
-      const response = await fetch(`http://localhost:8080/api/sales/${formData.id}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          customerName: formData.customerName,
-          customerPhone: formData.customerPhone,
-          paymentMethod: formData.paymentMethod,
-          saleDate: formData.saleDate,
-          paidAmount: formData.paidAmount,
-        }),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || "Failed to update sale");
-      }
-
-      const updatedSale = await response.json();
-      onSave({ ...formData, ...updatedSale });
-      onClose();
-      window.showToast("Sale updated successfully!", "success");
-    } catch (err: any) {
-      console.error("Error updating sale:", err);
-      window.showToast(err.message || "Failed to update sale", "error");
-    } finally {
-      setLoading(false);
-    }
   };
 
   const handleSaveWithItems = async () => {
@@ -349,12 +269,12 @@ export default function EditSaleModal({ sale, onClose, onSave, availableProducts
       // Transform items for backend - matching your API structure
       const itemsForBackend = formData.items.map(item => ({
         productId: item.productId,
-        productName: item.productName,
+        name: item.productName,        // Changed from productName to name
+        price: item.unitPrice,         // Changed from unitPrice to price
         quantity: item.quantity,
-        unitPrice: item.unitPrice,
-        lineTotal: item.lineTotal,
-        discount: item.discount,
-        buyingPrice: item.buyingPrice,
+        discountAmount: item.discount, // Changed from discount to discountAmount
+        total: item.lineTotal,         // Changed from lineTotal to total
+        // Remove buyingPrice - backend doesn't need it
       }));
 
       const response = await fetch(`http://localhost:8080/api/sales/${formData.id}/edit`, {
@@ -378,10 +298,10 @@ export default function EditSaleModal({ sale, onClose, onSave, availableProducts
       const updatedSale = await response.json();
       onSave({ ...formData, ...updatedSale });
       onClose();
-      window.showToast("Sale updated successfully with items!", "success");
+      window.showToast("Sale updated successfully!", "success");
     } catch (err: any) {
-      console.error("Error updating sale with items:", err);
-      window.showToast(err.message || "Failed to update sale with items", "error");
+      console.error("Error updating sale:", err);
+      window.showToast(err.message || "Failed to update sale", "error");
     } finally {
       setLoading(false);
     }
@@ -411,7 +331,9 @@ export default function EditSaleModal({ sale, onClose, onSave, availableProducts
         {/* Customer + Payment Info */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
           <div>
-            <label className="block text-sm font-medium mb-1">Customer Name *</label>
+            <label className="block text-sm font-medium mb-1">
+              Customer Name {formData.balance > 0 ? "*" : ""}
+            </label>
             <input
               type="text"
               value={formData.customerName || ""}
@@ -419,9 +341,14 @@ export default function EditSaleModal({ sale, onClose, onSave, availableProducts
               className="border px-3 py-2 rounded-md w-full"
               placeholder="Customer Name"
             />
+            {formData.balance > 0 && (
+              <p className="text-xs text-gray-500 mt-1">Required when balance is due</p>
+            )}
           </div>
           <div>
-            <label className="block text-sm font-medium mb-1">Phone *</label>
+            <label className="block text-sm font-medium mb-1">
+              Phone {formData.balance > 0 ? "*" : ""}
+            </label>
             <input
               type="tel"
               value={formData.customerPhone || ""}
@@ -429,6 +356,9 @@ export default function EditSaleModal({ sale, onClose, onSave, availableProducts
               className="border px-3 py-2 rounded-md w-full"
               placeholder="07XXXXXXXX"
             />
+            {formData.balance > 0 && (
+              <p className="text-xs text-gray-500 mt-1">Required when balance is due</p>
+            )}
           </div>
           <div>
             <label className="block text-sm font-medium mb-1">Sale Date *</label>
@@ -458,86 +388,8 @@ export default function EditSaleModal({ sale, onClose, onSave, availableProducts
 
         {/* Items Section */}
         <div className="mb-6">
-          <div className="flex justify-between items-center mb-2">
-            <h3 className="font-medium">Items</h3>
-            <button
-              onClick={() => setShowAddItem(!showAddItem)}
-              className="px-3 py-1 bg-blue-600 text-white rounded-md text-sm hover:bg-blue-700"
-              disabled={productsArray.length === 0}
-            >
-              {showAddItem ? "Cancel" : "+ Add Item"}
-              {productsArray.length === 0 && " (No products available)"}
-            </button>
-          </div>
-
-          {/* Add New Item Form */}
-          {showAddItem && (
-            <div className="mb-4 p-4 bg-gray-50 rounded-md">
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-3 mb-3">
-                <div>
-                  <label className="block text-sm font-medium mb-1">Product *</label>
-                  <select
-                    value={newItem.productId}
-                    onChange={(e) => setNewItem({...newItem, productId: Number(e.target.value)})}
-                    className="border px-3 py-2 rounded-md w-full"
-                    disabled={productsArray.length === 0}
-                  >
-                    <option value={0}>Select Product</option>
-                    {productsArray.length > 0 ? (
-                      productsArray.map(product => (
-                        <option 
-                          key={product.id} 
-                          value={product.id}
-                          disabled={!hasSufficientStock(product.id, newItem.quantity || 1)}
-                        >
-                          {product.itemName} (Ksh{product.sellingPrice})
-                        </option>
-                      ))
-                    ) : (
-                      <option value={0} disabled>No products available</option>
-                    )}
-                  </select>
-                  {newItem.productId && newItem.productId > 0 && (
-                    <p className="text-xs text-gray-500 mt-1">
-                      Available: {getAvailableStock(newItem.productId)}
-                    </p>
-                  )}
-                </div>
-                <div>
-                  <label className="block text-sm font-medium mb-1">Quantity *</label>
-                  <input
-                    type="number"
-                    min="1"
-                    max={newItem.productId ? getAvailableStock(newItem.productId) : 0}
-                    value={newItem.quantity || 1}
-                    onChange={(e) => setNewItem({...newItem, quantity: Number(e.target.value)})}
-                    className="border px-3 py-2 rounded-md w-full"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium mb-1">Discount (Ksh)</label>
-                  <input
-                    type="number"
-                    min="0"
-                    step="0.01"
-                    value={newItem.discount || 0}
-                    onChange={(e) => setNewItem({...newItem, discount: Number(e.target.value)})}
-                    className="border px-3 py-2 rounded-md w-full"
-                  />
-                </div>
-                <div className="flex items-end">
-                  <button
-                    onClick={addNewItem}
-                    className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 w-full"
-                    disabled={productsArray.length === 0 || !newItem.productId}
-                  >
-                    Add Item
-                  </button>
-                </div>
-              </div>
-            </div>
-          )}
-
+          <h3 className="font-medium mb-2">Items</h3>
+          
           {/* Items Table */}
           <table className="w-full text-sm border mb-4">
             <thead className="bg-gray-100">
@@ -563,14 +415,21 @@ export default function EditSaleModal({ sale, onClose, onSave, availableProducts
                     <input
                       type="number"
                       min="1"
-                      max={item.productId ? getAvailableStock(item.productId) : 0}
+                      step="1"
                       value={item.quantity}
                       onChange={(e) => handleItemChange(index, 'quantity', Number(e.target.value))}
                       className="border px-2 py-1 rounded w-full text-right"
                     />
                   </td>
-                  <td className="p-2 text-right">
-                    Ksh{item.unitPrice?.toFixed(2)}
+                  <td className="p-2">
+                    <input
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      value={item.unitPrice}
+                      onChange={(e) => handleItemChange(index, 'unitPrice', Number(e.target.value))}
+                      className="border px-2 py-1 rounded w-full text-right"
+                    />
                   </td>
                   <td className="p-2">
                     <input
@@ -671,19 +530,11 @@ export default function EditSaleModal({ sale, onClose, onSave, availableProducts
         <div className="flex justify-between pt-4 border-t">
           <div className="flex space-x-2">
             <button
-              onClick={handleSaveBasic}
-              disabled={loading}
-              className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {loading ? "Saving..." : "Save Basic Info"}
-            </button>
-            <button
               onClick={handleSaveWithItems}
-              disabled={loading || productsArray.length === 0}
+              disabled={loading}
               className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {loading ? "Saving..." : "Save with Items"}
-              {productsArray.length === 0 && " (No products)"}
+              {loading ? "Saving..." : "Save Changes"}
             </button>
           </div>
           <div className="flex space-x-2">
@@ -700,14 +551,12 @@ export default function EditSaleModal({ sale, onClose, onSave, availableProducts
         <div className="mt-4 text-sm text-gray-500">
           <p><strong>Note:</strong></p>
           <ul className="list-disc pl-5 mt-1">
-            <li>"Save Basic Info" updates only customer info and payment details</li>
-            <li>"Save with Items" updates everything including items (replaces all items)</li>
+            <li>You can adjust quantity, price, and discount for existing items</li>
+            <li>When you change price or quantity, the total updates automatically</li>
+            <li>Customer name and phone are only required if balance is due</li>
             <li>Stock is automatically checked - cannot exceed available stock</li>
             <li>When removing items, stock is automatically returned</li>
             <li>Profit is automatically calculated based on item cost prices</li>
-            {productsArray.length === 0 && (
-              <li className="text-red-500">Warning: No products available. Cannot edit items.</li>
-            )}
           </ul>
         </div>
       </div>
